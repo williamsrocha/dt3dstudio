@@ -10,10 +10,17 @@ const STATUS = {
 };
 
 const $ = id => document.getElementById(id);
-const brl = v => 'R$ ' + (Math.round((v || 0) * 100) / 100).toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-const num = id => { const v = parseFloat(String($(id).value).replace(/\./g, '').replace(',', '.')); return isFinite(v) && v >= 0 ? v : 0; };
 // Campos de dinheiro estilo app de banco: só números, a vírgula se ajusta sozinha (8 → 0,08 → 0,80).
 const fmtMoney = v => (Math.round((+v || 0) * 100) / 100).toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+const brl = v => 'R$ ' + fmtMoney(v);
+const ehDinheiro = el => el.dataset.money !== undefined;
+// Campo de dinheiro vem como "1.234,56"; campo type=number já vem com ponto decimal ("12.5").
+function num(id) {
+  const el = $(id);
+  const txt = ehDinheiro(el) ? el.value.replace(/\./g, '').replace(',', '.') : el.value;
+  const v = parseFloat(txt);
+  return isFinite(v) && v >= 0 ? v : 0;
+}
 function mascaraDinheiro(i) {
   const centavos = parseInt(i.value.replace(/\D/g, '') || '0', 10);
   i.value = fmtMoney(centavos / 100);
@@ -37,6 +44,7 @@ function toast(t) { const e = $('toast'); e.textContent = t; e.classList.add('on
 
 function perguntar(texto, sim = 'Sim', nao = 'Não') {
   const d = $('dlg');
+  if (d.open) return Promise.resolve(false);
   $('dlgTexto').textContent = texto; $('dlgSim').textContent = sim; $('dlgNao').textContent = nao;
   return new Promise(res => {
     const fim = v => { d.close(); $('dlgSim').onclick = $('dlgNao').onclick = null; res(v); };
@@ -63,7 +71,7 @@ function abrirWhatsApp(texto, fone) {
 const cfg = k => (st.config[k] ?? DEFAULTS[k]);
 
 function preencherConfig() {
-  for (const i of cfgInputs) if (document.activeElement !== i) i.value = i.dataset.money !== undefined ? fmtMoney(cfg(i.id)) : cfg(i.id);
+  for (const i of cfgInputs) if (document.activeElement !== i) i.value = ehDinheiro(i) ? fmtMoney(cfg(i.id)) : cfg(i.id);
 }
 
 let tSave;
@@ -71,7 +79,7 @@ function salvarConfig() {
   clearTimeout(tSave);
   tSave = setTimeout(() => {
     const c = {};
-    for (const i of cfgInputs) c[i.id] = (i.type === 'number' || i.dataset.money !== undefined) ? num(i.id) : i.value.trim();
+    for (const i of cfgInputs) c[i.id] = (i.type === 'number' || ehDinheiro(i)) ? num(i.id) : i.value.trim();
     store.saveConfig(c);
   }, 500);
 }
@@ -353,8 +361,8 @@ function ligarEventos() {
     const b = e.target.closest('button[data-a]'); if (!b) return;
     const p = st.pecas.find(x => x.id === b.dataset.id); if (!p) return;
     const a = b.dataset.a;
-    if (a === 'vendi') { store.savePeca({ ...p, vendidas: (p.vendidas || 0) + 1 }); toast('Mais uma venda!'); }
-    if (a === 'desfazer' && p.vendidas > 0) store.savePeca({ ...p, vendidas: p.vendidas - 1 });
+    if (a === 'vendi') { store.contarVenda(p.id, 1); toast('Mais uma venda!'); }
+    if (a === 'desfazer' && p.vendidas > 0) store.contarVenda(p.id, -1);
     if (a === 'orcar') { location.hash = 'pedidos'; abrirForm(null, p.id); }
     if (a === 'apagar' && await perguntar(`Apagar “${p.nome}” do catálogo?`, 'Apagar', 'Cancelar')) store.deletePeca(p.id);
   });
@@ -445,13 +453,15 @@ function ligarEventos() {
 async function iniciar(codigo) {
   $('login').hidden = true;
   $('app').hidden = false; $('tabs').hidden = false;
-  const sync = $('sync');
-  store = await abrirStore(codigo, s => { st = s; sync.className = 'sync' + (store?.modo === 'nuvem' ? ' on' : ''); render(); },
-    () => { sync.textContent = 'Sem conexão'; sync.className = 'sync err'; });
-  if (store.modo === 'nuvem') {
-    sync.textContent = 'Sincronizado'; sync.classList.add('on');
-    $('blocoCodigo').hidden = false; $('meuCodigo').textContent = codigo;
-  }
+  const selo = estado => {
+    const [texto, classe] = { local: ['Só neste aparelho', ''], nuvem: ['Sincronizado', ' on'], erro: ['Sem conexão', ' err'] }[estado];
+    $('sync').textContent = texto; $('sync').className = 'sync' + classe;
+  };
+  store = await abrirStore(codigo,
+    s => { st = s; if (store) selo(store.modo); render(); },
+    () => selo('erro'));
+  selo(store.modo);
+  if (store.modo === 'nuvem') { $('blocoCodigo').hidden = false; $('meuCodigo').textContent = codigo; }
   st = store.estado;
   render(); rota();
 }

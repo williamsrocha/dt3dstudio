@@ -46,6 +46,7 @@ function abrirLocal(onChange) {
     estado: st,
     saveConfig(c) { st.config = { ...st.config, ...c }; salvar(); },
     savePeca(p) { upsert(st.pecas, p); salvar(); },
+    contarVenda(id, delta) { const p = st.pecas.find(x => x.id === id); if (p) { p.vendidas = Math.max(0, (p.vendidas || 0) + delta); salvar(); } },
     deletePeca(id) { st.pecas = st.pecas.filter(x => x.id !== id); salvar(); },
     savePedido(p) { upsert(st.pedidos, p); salvar(); },
     deletePedido(id) { st.pedidos = st.pedidos.filter(x => x.id !== id); salvar(); },
@@ -98,9 +99,12 @@ async function abrirNuvem(codigo, onChange, onError) {
     modo: 'nuvem',
     estado: st,
     saveConfig(c) { st.config = { ...st.config, ...c }; return w(fs.setDoc(base, { config: st.config, atualizado: Date.now() }, { merge: true })); },
-    savePeca(p) { upsert(st.pecas, p); onChange(st); return w(fs.setDoc(fs.doc(base, 'pecas', p.id), p)); },
+    // o onSnapshot já avisa a mudança na hora, mesmo sem internet (compensação de latência do Firestore)
+    savePeca(p) { return w(fs.setDoc(fs.doc(base, 'pecas', p.id), p)); },
+    // increment soma no servidor: dois celulares tocando "Vendi uma!" juntos não perdem venda
+    contarVenda(id, delta) { return w(fs.updateDoc(fs.doc(base, 'pecas', id), { vendidas: fs.increment(delta) })); },
     deletePeca(id) { return w(fs.deleteDoc(fs.doc(base, 'pecas', id))); },
-    savePedido(p) { upsert(st.pedidos, p); onChange(st); return w(fs.setDoc(fs.doc(base, 'pedidos', p.id), p)); },
+    savePedido(p) { return w(fs.setDoc(fs.doc(base, 'pedidos', p.id), p)); },
     deletePedido(id) { return w(fs.deleteDoc(fs.doc(base, 'pedidos', id))); },
   };
 }

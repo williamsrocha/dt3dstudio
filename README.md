@@ -8,10 +8,12 @@ Instagram: [@dt3dstudio](https://instagram.com/dt3dstudio)
 - **Calcular**: preço sugerido por peça a partir do peso do filamento, tempo de impressão, extras e lucro desejado.
 - **Catálogo**: peças salvas, contador de vendas na escola e catálogo pronto para colar no WhatsApp.
 - **Pedidos**: orçamentos com várias peças, sinal de 50% via Pix e dois botões de WhatsApp:
-  1. **Enviar orçamento** (com chave Pix e regra do sinal);
-  2. **Enviar confirmação** (depois que o sinal cai).
-  Cada pedido passa por: *Aguardando sinal → Em produção → Entregue*.
+  1. **Mandar preço no WhatsApp** (orçamento com chave Pix e regra do sinal);
+  2. **Avisar que vamos fazer** (confirmação, depois que a metade cai no Pix).
+  Cada pedido passa por: *Esperando pagar a metade → Imprimindo → Entregue*.
+  Atalho: na calculadora, **Mandar o preço para um cliente** salva a peça e abre o pedido.
 - **Ajustes**: chave Pix, validade do orçamento, prazo padrão e custos da impressora.
+  Trancados pelo **PIN do papai** (só o hash do PIN fica salvo; é uma tranca contra crianças, não uma proteção forte).
 - Instalável no Android (Chrome → menu ⋮ → **Instalar app**) e funciona sem internet.
 
 ## Onde ficam os dados
