@@ -247,10 +247,32 @@ function abrirForm(pedido, pecaId) {
 }
 function fecharForm() { $('formPedido').hidden = true; editando = null; }
 
+/* ---------- PIN do papai (tranca os Ajustes) ---------- */
+// O PIN nunca fica no código: só um hash dele vai para a configuração (sincronizada).
+// É uma tranca contra crianças, não uma proteção forte.
+let ajustesAbertos = false;
+async function hashPin(pin) {
+  const dados = new TextEncoder().encode('dt3d:' + (local.get('p3d-codigo', '') || 'local') + ':' + pin);
+  const h = await crypto.subtle.digest('SHA-256', dados);
+  return [...new Uint8Array(h)].map(b => b.toString(16).padStart(2, '0')).join('');
+}
+function mostrarAjustes() {
+  const temPin = !!st.config.pinHash;
+  $('pinBox').hidden = ajustesAbertos;
+  $('ajustesConteudo').hidden = !ajustesAbertos;
+  if (!ajustesAbertos) {
+    $('pinTexto').textContent = temPin ? 'Área do papai. Digite o PIN para abrir.' : 'Crie o PIN do papai (4 a 8 números) para trancar esta área.';
+    $('pin2').hidden = temPin;
+    $('pinOk').textContent = temPin ? 'Abrir' : 'Criar PIN';
+  }
+}
+function trancar() { ajustesAbertos = false; $('pin').value = ''; $('pin2').value = ''; $('pinErro').textContent = ''; mostrarAjustes(); }
+
 /* ---------- navegação ---------- */
 const VIEWS = ['calcular', 'pecas', 'pedidos', 'ajustes'];
 function rota() {
   const v = VIEWS.includes(location.hash.slice(1)) ? location.hash.slice(1) : 'calcular';
+  if (v !== 'ajustes' && ajustesAbertos) trancar();
   VIEWS.forEach(n => { $('v-' + n).hidden = n !== v; });
   document.querySelectorAll('#tabs a').forEach(a => {
     if (a.dataset.v === v) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
@@ -263,6 +285,7 @@ function render() {
   mostrarCalculo();
   renderPecas();
   renderPedidos();
+  mostrarAjustes();
 }
 
 /* ---------- eventos ---------- */
@@ -351,6 +374,24 @@ function ligarEventos() {
     if (!await perguntar('Sair deste aparelho? Os dados continuam na nuvem; para voltar, digite o código de novo.', 'Sair', 'Cancelar')) return;
     local.del('p3d-codigo'); location.reload();
   });
+
+  $('pinBox').addEventListener('submit', async e => {
+    e.preventDefault();
+    const pin = $('pin').value.trim();
+    const erro = t => { $('pinErro').textContent = t; };
+    if (!/^\d{4,8}$/.test(pin)) return erro('O PIN tem de 4 a 8 números.');
+    if (!st.config.pinHash) {
+      if (pin !== $('pin2').value.trim()) return erro('Os dois PINs não são iguais.');
+      store.saveConfig({ pinHash: await hashPin(pin) });
+      toast('PIN criado!');
+    } else if (await hashPin(pin) !== st.config.pinHash) {
+      $('pin').value = ''; return erro('PIN errado.');
+    }
+    ajustesAbertos = true; $('pin').value = ''; $('pin2').value = ''; erro('');
+    preencherConfig(); mostrarAjustes();
+  });
+  $('trancar').addEventListener('click', () => { trancar(); toast('Ajustes trancados'); });
+  document.addEventListener('visibilitychange', () => { if (document.hidden) trancar(); });
 
   window.addEventListener('hashchange', rota);
 }

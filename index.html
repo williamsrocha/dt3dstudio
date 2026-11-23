@@ -158,6 +158,14 @@
   <section class="view" id="v-ajustes" hidden>
     <div class="card">
       <h2>Ajustes <span class="hint">peça ajuda ao papai</span></h2>
+      <form id="pinBox" class="pin" novalidate>
+        <p id="pinTexto">Área do papai. Digite o PIN para abrir.</p>
+        <input id="pin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="off" aria-label="PIN">
+        <input id="pin2" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="off" placeholder="Repita o PIN" aria-label="Repita o PIN" hidden>
+        <p class="erro" id="pinErro" role="alert"></p>
+        <button class="btn primary" id="pinOk" type="submit">Abrir</button>
+      </form>
+      <div id="ajustesConteudo" hidden>
       <h3>Pagamento</h3>
       <label for="pix">Chave Pix <span class="hint">use uma chave aleatória, nunca o CPF</span></label>
       <input id="pix" data-cfg type="text" autocomplete="off" placeholder="Cole aqui a chave aleatória">
@@ -189,6 +197,8 @@
           <button class="btn ghost" id="sair" type="button">Sair deste aparelho</button>
         </div>
         <p class="note">Guarde o código num lugar seguro. Quem tiver o código consegue ver e mudar os dados.</p>
+      </div>
+      <div class="tools"><button class="btn ghost" id="trancar" type="button">Trancar Ajustes</button></div>
       </div>
     </div>
   </section>

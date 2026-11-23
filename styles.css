@@ -112,6 +112,10 @@ input:focus,select:focus,button:focus-visible,a:focus-visible{outline:3px solid 
 .pv{display:flex;flex-wrap:wrap;gap:4px 16px;font-size:14px;color:var(--soft);margin-bottom:8px}
 .pv b{color:var(--ink);white-space:nowrap}
 
+.pin{max-width:360px}
+.pin p{margin:0 0 8px}
+.pin input{font-size:26px;letter-spacing:8px;text-align:center;margin-bottom:8px}
+.pin .btn{width:100%;margin-top:6px}
 .codigo{font-size:24px;font-weight:700;letter-spacing:1px;background:var(--bg);border-radius:14px;padding:12px;text-align:center;margin:6px 0 0;overflow-wrap:anywhere}
 
 .tabs{position:fixed;left:0;right:0;bottom:0;background:var(--card);border-top:2px solid var(--line);display:grid;grid-template-columns:repeat(4,minmax(0,1fr));padding-bottom:env(safe-area-inset-bottom);z-index:5}

@@ -79,6 +79,7 @@ export async function criarFamilia(codigo, configInicial) {
   const { fs, db } = await carregarFirebase();
   const base = fs.doc(db, 'familias', codigo);
   const config = { ...configInicial, ...local.get('p3d-cfg', {}) };
+  delete config.pinHash; // o PIN é criado de novo na nuvem
   await fs.setDoc(base, { config, criada: Date.now() });
   for (const p of local.get('p3d-pecas', [])) await fs.setDoc(fs.doc(base, 'pecas', p.id), p);
   for (const p of local.get('p3d-pedidos', [])) await fs.setDoc(fs.doc(base, 'pedidos', p.id), p);
