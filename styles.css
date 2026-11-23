@@ -71,7 +71,8 @@ input:focus,select:focus,button:focus-visible,a:focus-visible{outline:3px solid 
 .ic{width:20px;height:20px;flex:none;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .btn,.acts button{display:inline-flex;align-items:center;justify-content:center;gap:8px;text-align:center}
 .btn .ic{width:22px;height:22px}
-.orcar span{display:block}
+.orcar span{display:block;white-space:nowrap}
+.btn.orcar{font-size:clamp(13px,3.8vw,16px);padding-inline:12px}
 .btn{min-height:52px;border:0;border-radius:16px;font:600 17px Fredoka,sans-serif;cursor:pointer;padding:0 18px}
 .btn.small{min-height:44px;font-size:15px;padding:0 14px;border-radius:12px}
 .btn.primary{background:var(--brand);color:var(--on-brand)}
