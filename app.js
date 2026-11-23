@@ -22,6 +22,7 @@ function mascaraDinheiro(i) {
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const dataBR = t => new Date(t).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
 const DIA = 86400000;
+const ico = n => `<svg class="ic" aria-hidden="true"><use href="#i-${n}"/></svg>`;
 const cfgInputs = [...document.querySelectorAll('[data-cfg]')];
 
 let store = null;
@@ -130,10 +131,10 @@ function renderPecas() {
       <div class="meta">${esc(i.who)} · custo ${brl(i.custo)} · vendidas: ${i.vendidas || 0}</div></div>
       <div class="pr">${brl(i.preco)}</div>
       <div class="acts">
-        <button class="sold" data-a="vendi" data-id="${i.id}">Vendi uma!</button>
+        <button class="sold" data-a="vendi" data-id="${i.id}">${ico('moeda')}Vendi uma!</button>
         <button data-a="desfazer" data-id="${i.id}">Desfazer venda</button>
-        <button class="go" data-a="orcar" data-id="${i.id}">Mandar o preço</button>
-        <button data-a="apagar" data-id="${i.id}">Apagar</button>
+        <button class="go" data-a="orcar" data-id="${i.id}">${ico('balao')}Mandar o preço</button>
+        <button data-a="apagar" data-id="${i.id}">${ico('lixeira')}Apagar</button>
       </div></li>`).join('')
     : '<li class="empty">Nenhuma peça no catálogo ainda. Calcule o preço e toque em “Salvar no catálogo”.</li>';
 }
@@ -190,11 +191,11 @@ function renderPedidos() {
         ? `<span>Metade paga: <b>${brl(sinal)}</b></span><span>Falta: <b>${brl(total - sinal)}</b></span><span>Entrega: <b>${dataBR(p.sinalEm + p.prazo * DIA)}</b></span>`
         : `<span>Pago: <b>${brl(total)}</b></span><span>Entregue em <b>${dataBR(p.entregueEm)}</b></span>`;
     const bts = {
-      aguardando: `<button class="wa" data-a="msgOrc" data-id="${p.id}">Mandar preço no WhatsApp</button>
-        <button class="go" data-a="sinal" data-id="${p.id}">Cliente pagou a metade</button>
-        <button data-a="editar" data-id="${p.id}">Editar</button>`,
-      producao: `<button class="wa" data-a="msgConf" data-id="${p.id}">Avisar que vamos fazer</button>
-        <button class="go" data-a="entregue" data-id="${p.id}">Entreguei e recebi o resto</button>
+      aguardando: `<button class="wa" data-a="msgOrc" data-id="${p.id}">${ico('balao')}Mandar preço no WhatsApp</button>
+        <button class="go" data-a="sinal" data-id="${p.id}">${ico('metade')}Cliente pagou a metade</button>
+        <button data-a="editar" data-id="${p.id}">${ico('lapis')}Editar</button>`,
+      producao: `<button class="wa" data-a="msgConf" data-id="${p.id}">${ico('balao')}Avisar que vamos fazer</button>
+        <button class="go" data-a="entregue" data-id="${p.id}">${ico('caixa')}Entreguei e recebi o resto</button>
         <button data-a="voltar" data-id="${p.id}">Ainda não pagou</button>`,
       entregue: `<button data-a="reabrir" data-id="${p.id}">Desfazer entrega</button>`,
     }[p.status] || '';
@@ -205,8 +206,8 @@ function renderPedidos() {
       <li><b>Total</b><b>${brl(total)}</b></li></ul>
       <div class="pv">${info}</div>
       <div class="acts">${bts}
-        <button data-a="copiarMsg" data-id="${p.id}">Copiar mensagem</button>
-        <button data-a="apagarPedido" data-id="${p.id}">Apagar</button></div></li>`;
+        <button data-a="copiarMsg" data-id="${p.id}">${ico('copiar')}Copiar mensagem</button>
+        <button data-a="apagarPedido" data-id="${p.id}">${ico('lixeira')}Apagar</button></div></li>`;
   }).join('') : '<li class="empty">Nenhum pedido ainda. Toque em “Novo pedido” ou em “Mandar o preço” no catálogo.</li>';
 }
 

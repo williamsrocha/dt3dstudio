@@ -27,6 +27,18 @@
 
 
 
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-livro" viewBox="0 0 24 24"><path d="M5 4.5A1.5 1.5 0 0 1 6.5 3H19v15H6.5A1.5 1.5 0 0 0 5 19.5z"/><path d="M5 19.5A1.5 1.5 0 0 0 6.5 21H19v-3"/><path d="M12 7v7M8.5 10.5h7"/></symbol>
+  <symbol id="i-balao" viewBox="0 0 24 24"><path d="M4 5h16v11H10l-6 4z"/><path d="M8.5 10.5h.01M12 10.5h.01M15.5 10.5h.01" stroke-width="3"/></symbol>
+  <symbol id="i-borracha" viewBox="0 0 24 24"><path d="M4 16l9-9 6 6-6 6H7z"/><path d="M9 11l6 6M13 20h7"/></symbol>
+  <symbol id="i-moeda" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M14.5 9.5c-.4-.9-1.3-1.5-2.5-1.5-1.4 0-2.5.8-2.5 2s1.1 1.6 2.5 2 2.5.8 2.5 2-1.1 2-2.5 2c-1.2 0-2.1-.6-2.5-1.5M12 6.5V8M12 16v1.5"/></symbol>
+  <symbol id="i-metade" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 0 0 18z" fill="currentColor"/></symbol>
+  <symbol id="i-caixa" viewBox="0 0 24 24"><path d="M3 5h18v4H3zM5 9v11h14V9"/><path d="M9 14.5l2 2 4-4"/></symbol>
+  <symbol id="i-lapis" viewBox="0 0 24 24"><path d="M4 20l1-4.5L16 4.5l3.5 3.5-11 11z"/><path d="M14 6.5l3.5 3.5"/></symbol>
+  <symbol id="i-copiar" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/></symbol>
+  <symbol id="i-lixeira" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6"/></symbol>
+</svg>
+
 <!-- Entrada com o código da família (só aparece quando a nuvem está ligada) -->
 <section id="login" class="login" hidden>
   <div class="card">
@@ -55,14 +67,14 @@
         </div>
         <div class="bar" id="bar"></div>
         <div class="legend" id="legend"></div>
-        <button class="btn save" id="save" type="button">Salvar no catálogo</button>
-        <button class="btn orcar" id="orcar" type="button">Mandar o preço para um cliente<small>o nome disso é orçamento</small></button>
+        <button class="btn save" id="save" type="button"><svg class="ic" aria-hidden="true"><use href="#i-livro"/></svg>Salvar no catálogo</button>
+        <button class="btn orcar" id="orcar" type="button"><svg class="ic" aria-hidden="true"><use href="#i-balao"/></svg><span>Mandar o preço para um cliente<small>o nome disso é orçamento</small></span></button>
       </section>
 
       <section class="card">
         <div class="head">
           <h2>Quem fez a peça?</h2>
-          <button class="btn ghost small" id="limpar" type="button">Limpar</button>
+          <button class="btn ghost small" id="limpar" type="button"><svg class="ic" aria-hidden="true"><use href="#i-borracha"/></svg>Limpar</button>
         </div>
         <div class="who" id="who">
           <button type="button" data-k="Davi" style="--c:var(--davi)" aria-pressed="true">Davi</button>
@@ -110,8 +122,8 @@
       <div class="totals" id="totPecas"></div>
       <ul class="items" id="listaPecas"></ul>
       <div class="tools">
-        <button class="btn primary" id="copiarCatalogo" type="button">Copiar catálogo para o WhatsApp</button>
-        <button class="btn ghost" id="zerar" type="button">Zerar vendas na escola</button>
+        <button class="btn primary" id="copiarCatalogo" type="button"><svg class="ic" aria-hidden="true"><use href="#i-copiar"/></svg>Copiar catálogo para o WhatsApp</button>
+        <button class="btn ghost" id="zerar" type="button"><svg class="ic" aria-hidden="true"><use href="#i-borracha"/></svg>Zerar vendas na escola</button>
       </div>
       <p class="note">“Vendi uma!” é para venda na hora, na escola. Encomendas vão em Pedidos.</p>
     </div>
@@ -189,7 +201,7 @@
         <h3>Código da família</h3>
         <p class="codigo" id="meuCodigo"></p>
         <div class="tools">
-          <button class="btn primary" id="copiarCodigo" type="button">Copiar código</button>
+          <button class="btn primary" id="copiarCodigo" type="button"><svg class="ic" aria-hidden="true"><use href="#i-copiar"/></svg>Copiar código</button>
           <button class="btn ghost" id="sair" type="button">Sair deste aparelho</button>
         </div>
         <p class="note">Guarde o código num lugar seguro. Quem tiver o código consegue ver e mudar os dados.</p>
