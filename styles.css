@@ -73,6 +73,7 @@ input:focus,select:focus,button:focus-visible,a:focus-visible{outline:3px solid 
 .btn.ghost{background:transparent;color:var(--ink);border:2px solid var(--line)}
 .btn.wa{background:#1a8d4f;color:#fff}
 .save{width:100%;margin-top:18px;background:#111;color:#ff8a2e}
+.orcar{width:100%;margin-top:10px;background:transparent;border:2px solid #111;color:#111}
 .tools{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
 .tools .btn{flex:1 1 170px}
 .ou{text-align:center;color:var(--soft);margin:10px 0}

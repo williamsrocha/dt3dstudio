@@ -203,6 +203,11 @@ function renderPedidos() {
   }).join('') : '<li class="empty">Nenhum pedido ainda. Toque em “Novo orçamento” ou em “Fazer orçamento” no catálogo.</li>';
 }
 
+async function enviarOrcamento(p) {
+  if (!cfg('pix') && !await perguntar('A chave Pix ainda não foi cadastrada em Ajustes. Enviar o orçamento mesmo assim?', 'Enviar', 'Voltar')) return;
+  abrirWhatsApp(msgOrcamento(p), p.fone);
+}
+
 /* formulário de pedido */
 function opcoesPecas(sel) {
   return st.pecas.map(p => `<option value="${p.id}"${p.id === sel ? ' selected' : ''}>${esc(p.nome)} — ${brl(p.preco)}</option>`).join('');
@@ -295,11 +300,24 @@ function ligarEventos() {
   $('who').addEventListener('click', e => { const b = e.target.closest('button'); if (b) { setWho(b.dataset.k); mostrarCalculo(); } });
   $('presets').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; $('lucro').value = b.dataset.v; mostrarCalculo(); salvarConfig(); });
 
-  $('save').addEventListener('click', () => {
+  // Salva a peça calculada; se já existe uma igual (mesmo nome, quem fez e preço), reaproveita.
+  function salvarPecaAtual() {
     mostrarCalculo();
-    if (!atual.nome) { toast('Dê um nome para a peça'); $('nome').focus(); return; }
-    store.savePeca({ id: uid(), nome: atual.nome, who, preco: atual.preco, custo: atual.custo, vendidas: 0, criada: Date.now() });
-    toast('Salvo no catálogo!');
+    if (!atual.nome) { toast('Dê um nome para a peça'); $('nome').focus(); return null; }
+    const igual = st.pecas.find(p => p.nome === atual.nome && p.who === who && Math.abs(p.preco - atual.preco) < 0.005);
+    if (igual) return { peca: igual, nova: false };
+    const peca = { id: uid(), nome: atual.nome, who, preco: atual.preco, custo: atual.custo, vendidas: 0, criada: Date.now() };
+    store.savePeca(peca);
+    return { peca, nova: true };
+  }
+  $('save').addEventListener('click', () => {
+    const r = salvarPecaAtual(); if (!r) return;
+    toast(r.nova ? 'Salvo no catálogo!' : 'Essa peça já está no catálogo');
+  });
+  $('orcar').addEventListener('click', () => {
+    const r = salvarPecaAtual(); if (!r) return;
+    location.hash = 'pedidos';
+    abrirForm(null, r.peca.id);
   });
 
   $('listaPecas').addEventListener('click', async e => {
@@ -330,29 +348,27 @@ function ligarEventos() {
     const b = e.target.closest('button'); if (!b) return;
     if ($('itensForm').children.length > 1) { b.parentElement.remove(); atualizarTotalForm(); }
   });
-  $('formPedido').addEventListener('submit', e => {
+  $('formPedido').addEventListener('submit', async e => {
     e.preventDefault();
     const cliente = $('cliente').value.trim();
     const itens = itensDoForm();
     if (!cliente) { $('formErro').textContent = 'Coloque o nome do cliente.'; $('cliente').focus(); return; }
     if (!itens.length) { $('formErro').textContent = 'Escolha pelo menos uma peça.'; return; }
     const antigo = st.pedidos.find(p => p.id === editando);
-    store.savePedido({
+    const pedido = {
       ...(antigo || { id: uid(), status: 'aguardando', criada: Date.now() }),
       cliente, fone: $('fone').value.trim(), prazo: Math.round(num('prazo')), itens,
-    });
+    };
+    store.savePedido(pedido);
     fecharForm();
-    toast(antigo ? 'Orçamento atualizado' : 'Orçamento salvo! Agora toque em “Enviar orçamento”.');
+    if (await perguntar(`Orçamento ${antigo ? 'atualizado' : 'salvo'}! Enviar agora para ${cliente} pelo WhatsApp?`, 'Enviar pelo WhatsApp', 'Depois')) enviarOrcamento(pedido);
   });
 
   $('listaPedidos').addEventListener('click', async e => {
     const b = e.target.closest('button[data-a]'); if (!b) return;
     const p = st.pedidos.find(x => x.id === b.dataset.id); if (!p) return;
     const a = b.dataset.a;
-    if (a === 'msgOrc') {
-      if (!cfg('pix') && !await perguntar('A chave Pix ainda não foi cadastrada em Ajustes. Enviar o orçamento mesmo assim?', 'Enviar', 'Voltar')) return;
-      abrirWhatsApp(msgOrcamento(p), p.fone);
-    }
+    if (a === 'msgOrc') enviarOrcamento(p);
     if (a === 'msgConf') abrirWhatsApp(msgConfirmacao(p), p.fone);
     if (a === 'copiarMsg') copiar(p.status === 'producao' ? msgConfirmacao(p) : msgOrcamento(p), 'Mensagem copiada!');
     if (a === 'sinal' && await perguntar(`Confirmar que ${p.cliente} pagou o sinal de ${brl(sinalPedido(p))}?`, 'Recebi', 'Ainda não')) {
