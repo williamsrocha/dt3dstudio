@@ -297,6 +297,15 @@ function render() {
 function ligarEventos() {
   document.querySelectorAll('#v-calcular input').forEach(i => i.addEventListener('input', () => { mostrarCalculo(); if (i.dataset.cfg !== undefined) salvarConfig(); }));
   cfgInputs.forEach(i => { if (!i.closest('#v-calcular')) i.addEventListener('input', () => { mostrarCalculo(); salvarConfig(); }); });
+  $('limpar').addEventListener('click', () => {
+    // volta a calculadora para o começo; não mexe no catálogo, nos pedidos nem nos Ajustes
+    $('nome').value = ''; $('peso').value = ''; $('qtd').value = 1;
+    $('horas').value = ''; $('minutos').value = ''; $('extras').value = 0;
+    mostrarCalculo(); window.scrollTo(0, 0); toast('Campos limpos');
+  });
+  $('home').addEventListener('click', e => {
+    if (location.hash === '#calcular' || !location.hash) { e.preventDefault(); rota(); }
+  });
   $('who').addEventListener('click', e => { const b = e.target.closest('button'); if (b) { setWho(b.dataset.k); mostrarCalculo(); } });
   $('presets').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; $('lucro').value = b.dataset.v; mostrarCalculo(); salvarConfig(); });
 

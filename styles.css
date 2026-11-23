@@ -16,7 +16,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 Fredoka,system
 [hidden]{display:none!important}
 
 .top{background:var(--head);color:#fff;border-bottom:3px solid var(--brand);padding:calc(14px + env(safe-area-inset-top)) max(5vw,16px) 58px;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 12px}
-.brand{display:flex;align-items:center;gap:12px}
+.brand{display:flex;align-items:center;gap:12px;color:inherit;text-decoration:none;border-radius:16px}
 .brand img{width:56px;height:56px;flex:none;border-radius:14px}
 .top h1 em{font-style:normal;color:var(--brand)}
 .top h1{margin:0;font-size:clamp(24px,7vw,36px);line-height:1.05;font-weight:700;letter-spacing:.5px;white-space:nowrap}
