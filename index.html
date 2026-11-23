@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#2347ff">
+<meta name="description" content="Calculadora de preços e orçamentos da DT 3D STUDIO — peças impressas em 3D.">
+<title>DT 3D STUDIO</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <svg viewBox="0 0 100 100" aria-hidden="true"><use href="#spool"/></svg>
+    <div>
+      <h1>DT 3D STUDIO</h1>
+      <p>Calculadora de Pecinhas</p>
+    </div>
+  </div>
+  <span class="sync" id="sync">Só neste aparelho</span>
+</header>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="spool" viewBox="0 0 100 100">
+    <circle cx="50" cy="50" r="44" fill="#fff"/>
+    <circle cx="50" cy="50" r="35" fill="#d93a1f"/>
+    <circle cx="50" cy="50" r="35" fill="none" stroke="#ff8a70" stroke-width="2" stroke-dasharray="3 4"/>
+    <circle cx="50" cy="50" r="14" fill="#fff"/>
+    <circle cx="50" cy="50" r="7" fill="#2347ff"/>
+  </symbol>
+</svg>
+
+<!-- Entrada com o código da família (só aparece quando a nuvem está ligada) -->
+<section id="login" class="login" hidden>
+  <div class="card">
+    <h2>Código da família</h2>
+    <p>Com o mesmo código, as peças e os pedidos aparecem iguais em qualquer celular.</p>
+    <label for="codigo">Já tem um código? Digite aqui</label>
+    <input id="codigo" type="text" autocomplete="off" autocapitalize="characters" placeholder="DT-XXXX-XXXX-XXXX">
+    <p class="erro" id="loginErro" role="alert"></p>
+    <button class="btn primary" id="entrar" type="button">Entrar</button>
+    <div class="ou">ou</div>
+    <button class="btn ghost" id="criar" type="button">Criar um código novo</button>
+  </div>
+</section>
+
+<main id="app" hidden>
+  <!-- CALCULAR -->
+  <section class="view" id="v-calcular">
+    <div class="grid">
+      <section class="tag" aria-live="polite">
+        <div class="lbl">Preço sugerido por peça</div>
+        <div class="price" id="price">R$ 0,00</div>
+        <div class="piece" id="pieceName">Preencha os dados da peça</div>
+        <div class="minis">
+          <div class="mini"><small>Custo para fazer</small><b id="cost">R$ 0,00</b></div>
+          <div class="mini"><small>Você ganha</small><b id="profit">R$ 0,00</b></div>
+        </div>
+        <div class="bar" id="bar"></div>
+        <div class="legend" id="legend"></div>
+        <button class="btn save" id="save" type="button">Salvar no catálogo</button>
+      </section>
+
+      <section class="card">
+        <h2>Quem fez a peça?</h2>
+        <div class="who" id="who">
+          <button type="button" data-k="Davi" style="--c:var(--davi)" aria-pressed="true">Davi</button>
+          <button type="button" data-k="Theo" style="--c:var(--theo)" aria-pressed="false">Theo</button>
+        </div>
+
+        <label for="nome">Nome da peça</label>
+        <input id="nome" type="text" placeholder="Ex.: Chaveiro de dinossauro" autocomplete="off">
+
+        <div class="row">
+          <div>
+            <label for="peso">Peso do filamento <span class="hint">aparece no fatiador</span></label>
+            <div class="unit"><input id="peso" type="number" inputmode="decimal" min="0" step="1" value="15"><span>g</span></div>
+          </div>
+          <div>
+            <label for="qtd">Quantas peças saíram <span class="hint">na mesma impressão</span></label>
+            <div class="unit"><input id="qtd" type="number" inputmode="numeric" min="1" step="1" value="1"><span>un</span></div>
+          </div>
+        </div>
+
+        <label>Tempo de impressão <span class="hint">também aparece no fatiador</span></label>
+        <div class="row">
+          <div class="unit"><input id="horas" type="number" inputmode="numeric" min="0" step="1" value="1" aria-label="Horas"><span>h</span></div>
+          <div class="unit"><input id="minutos" type="number" inputmode="numeric" min="0" max="59" step="5" value="0" aria-label="Minutos"><span>min</span></div>
+        </div>
+
+        <label for="extras">Extras por peça <span class="hint">argola de chaveiro, ímã, tinta, saquinho…</span></label>
+        <div class="unit"><input id="extras" type="number" inputmode="decimal" min="0" step="0.10" value="0"><span>R$</span></div>
+
+        <label for="lucro">Lucro em cima do custo <span class="hint">escolha um botão ou digite a porcentagem</span></label>
+        <div class="presets" id="presets">
+          <button type="button" data-v="50">Metade a mais<small>+50%</small></button>
+          <button type="button" data-v="100">O dobro<small>+100%</small></button>
+          <button type="button" data-v="200">O triplo<small>+200%</small></button>
+        </div>
+        <div class="unit"><input id="lucro" data-cfg type="number" inputmode="numeric" min="0" step="10" value="100" aria-label="Lucro em porcentagem sobre o custo"><span>%</span></div>
+      </section>
+    </div>
+  </section>
+
+  <!-- CATÁLOGO -->
+  <section class="view" id="v-pecas" hidden>
+    <div class="card">
+      <h2>Catálogo de peças</h2>
+      <div class="totals" id="totPecas"></div>
+      <ul class="items" id="listaPecas"></ul>
+      <div class="tools">
+        <button class="btn primary" id="copiarCatalogo" type="button">Copiar catálogo para o WhatsApp</button>
+        <button class="btn ghost" id="zerar" type="button">Zerar vendas na escola</button>
+      </div>
+      <p class="note">“Vendi uma!” é para venda na hora, na escola. Encomendas vão em Pedidos.</p>
+    </div>
+  </section>
+
+  <!-- PEDIDOS -->
+  <section class="view" id="v-pedidos" hidden>
+    <div class="card">
+      <div class="head">
+        <h2>Pedidos</h2>
+        <button class="btn primary small" id="novoPedido" type="button">Novo orçamento</button>
+      </div>
+      <div class="totals" id="totPedidos"></div>
+
+      <form id="formPedido" class="form" hidden novalidate>
+        <h3 id="formTitulo">Novo orçamento</h3>
+        <div class="row">
+          <div><label for="cliente">Nome do cliente</label><input id="cliente" type="text" autocomplete="off" placeholder="Ex.: Pedro"></div>
+          <div><label for="fone">WhatsApp <span class="hint">com DDD, opcional</span></label><input id="fone" type="tel" inputmode="tel" placeholder="(19) 99999-9999"></div>
+        </div>
+        <label>Peças do pedido</label>
+        <div id="itensForm"></div>
+        <button class="btn ghost small" id="addItem" type="button">Adicionar peça</button>
+        <div class="row">
+          <div><label for="prazo">Prazo de entrega</label><div class="unit"><input id="prazo" type="number" inputmode="numeric" min="0" step="1" value="3"><span>dias</span></div></div>
+          <div class="sum"><small>Total</small><b id="formTotal">R$ 0,00</b><small id="formSinal">Sinal de 50%: R$ 0,00</small></div>
+        </div>
+        <p class="erro" id="formErro" role="alert"></p>
+        <div class="tools">
+          <button class="btn primary" type="submit">Salvar orçamento</button>
+          <button class="btn ghost" id="cancelarPedido" type="button">Cancelar</button>
+        </div>
+      </form>
+
+      <ul class="pedidos" id="listaPedidos"></ul>
+    </div>
+  </section>
+
+  <!-- AJUSTES -->
+  <section class="view" id="v-ajustes" hidden>
+    <div class="card">
+      <h2>Ajustes <span class="hint">peça ajuda ao papai</span></h2>
+      <h3>Pagamento</h3>
+      <label for="pix">Chave Pix <span class="hint">use uma chave aleatória, nunca o CPF</span></label>
+      <input id="pix" data-cfg type="text" autocomplete="off" placeholder="Cole aqui a chave aleatória">
+      <div class="row">
+        <div><label for="validade">Orçamento vale por</label><div class="unit"><input id="validade" data-cfg type="number" inputmode="numeric" min="1" step="1" value="7"><span>dias</span></div></div>
+        <div><label for="prazoPadrao">Prazo padrão</label><div class="unit"><input id="prazoPadrao" data-cfg type="number" inputmode="numeric" min="0" step="1" value="3"><span>dias</span></div></div>
+      </div>
+
+      <h3>Impressora</h3>
+      <div class="row">
+        <div><label for="kg">Preço do rolo de 1 kg</label><div class="unit"><input id="kg" data-cfg type="number" inputmode="decimal" min="0" step="1" value="100"><span>R$</span></div></div>
+        <div><label for="watts">Potência da impressora</label><div class="unit"><input id="watts" data-cfg type="number" inputmode="numeric" min="0" step="10" value="120"><span>W</span></div></div>
+      </div>
+      <div class="row">
+        <div><label for="kwh">Tarifa de energia</label><div class="unit"><input id="kwh" data-cfg type="number" inputmode="decimal" min="0" step="0.01" value="0.95"><span>R$/kWh</span></div></div>
+        <div><label for="desg">Desgaste da máquina</label><div class="unit"><input id="desg" data-cfg type="number" inputmode="decimal" min="0" step="0.05" value="0.30"><span>R$/h</span></div></div>
+      </div>
+      <div class="row">
+        <div><label for="falha">Reserva para falhas <span class="hint">sobre filamento, luz e desgaste</span></label><div class="unit"><input id="falha" data-cfg type="number" inputmode="numeric" min="0" step="5" value="10"><span>%</span></div></div>
+        <div><label for="arred">Arredondar para</label><div class="unit"><input id="arred" data-cfg type="number" inputmode="decimal" min="0" step="0.5" value="0.50"><span>R$</span></div></div>
+      </div>
+      <p class="note">Valores iniciais são estimativas: confira o preço do filamento e a tarifa na conta de luz.</p>
+
+      <div id="blocoCodigo" hidden>
+        <h3>Código da família</h3>
+        <p class="codigo" id="meuCodigo"></p>
+        <div class="tools">
+          <button class="btn primary" id="copiarCodigo" type="button">Copiar código</button>
+          <button class="btn ghost" id="sair" type="button">Sair deste aparelho</button>
+        </div>
+        <p class="note">Guarde o código num lugar seguro. Quem tiver o código consegue ver e mudar os dados.</p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<nav class="tabs" id="tabs" hidden>
+  <a href="#calcular" data-v="calcular"><svg viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="3"/><path d="M8 7h8M8 12h2M14 12h2M8 16h2M14 16h2"/></svg>Calcular</a>
+  <a href="#pecas" data-v="pecas"><svg viewBox="0 0 24 24"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M4 7.5l8 4.5 8-4.5M12 12v9"/></svg>Catálogo</a>
+  <a href="#pedidos" data-v="pedidos"><svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"/><path d="M9 11h7M9 15h7M15 3v4h4"/></svg>Pedidos</a>
+  <a href="#ajustes" data-v="ajustes"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg>Ajustes</a>
+</nav>
+
+<dialog id="dlg">
+  <p id="dlgTexto"></p>
+  <div class="tools">
+    <button class="btn primary" id="dlgSim" type="button">Sim</button>
+    <button class="btn ghost" id="dlgNao" type="button">Não</button>
+  </div>
+</dialog>
+<div class="toast" id="toast" role="status"></div>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>

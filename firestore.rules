@@ -1,0 +1,26 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Cada família tem um código no formato DT-XXXX-XXXX-XXXX.
+    // Quem sabe o código lê e edita os dados dessa família.
+    // Ninguém consegue listar os códigos existentes nem apagar a família inteira.
+    function codigoValido(codigo) {
+      return codigo.matches('^DT-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$');
+    }
+
+    match /familias/{codigo} {
+      allow get, create, update: if codigoValido(codigo);
+      allow list, delete: if false;
+
+      match /{colecao}/{id} {
+        allow read, write: if codigoValido(codigo)
+                           && colecao in ['pecas', 'pedidos'];
+      }
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

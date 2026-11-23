@@ -1,0 +1,408 @@
+import { abrirStore, cloudEnabled, local, uid, novoCodigo, normalizarCodigo, codigoExiste, criarFamilia } from './store.js';
+
+const INSTAGRAM = '@dt3dstudio';
+const DEFAULTS = { kg: 100, watts: 120, kwh: 0.95, desg: 0.30, falha: 10, arred: 0.5, lucro: 100, pix: '', validade: 7, prazoPadrao: 3 };
+const QUEM = { Davi: 'var(--davi)', Theo: 'var(--theo)' };
+const STATUS = {
+  aguardando: { nome: 'Aguardando sinal', cor: 'var(--st-agu)' },
+  producao: { nome: 'Em produção', cor: 'var(--st-pro)' },
+  entregue: { nome: 'Entregue', cor: 'var(--st-ent)' },
+};
+
+const $ = id => document.getElementById(id);
+const brl = v => 'R$ ' + (Math.round((v || 0) * 100) / 100).toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+const num = id => { const v = parseFloat(String($(id).value).replace(',', '.')); return isFinite(v) && v >= 0 ? v : 0; };
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const dataBR = t => new Date(t).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+const DIA = 86400000;
+const cfgInputs = [...document.querySelectorAll('[data-cfg]')];
+
+let store = null;
+let st = { config: {}, pecas: [], pedidos: [] };
+let who = local.get('p3d-who', 'Davi');
+let atual = null;          // resultado do último cálculo
+let editando = null;       // id do pedido em edição
+
+/* ---------- utilidades de interface ---------- */
+let tt;
+function toast(t) { const e = $('toast'); e.textContent = t; e.classList.add('on'); clearTimeout(tt); tt = setTimeout(() => e.classList.remove('on'), 2400); }
+
+function perguntar(texto, sim = 'Sim', nao = 'Não') {
+  const d = $('dlg');
+  $('dlgTexto').textContent = texto; $('dlgSim').textContent = sim; $('dlgNao').textContent = nao;
+  return new Promise(res => {
+    const fim = v => { d.close(); $('dlgSim').onclick = $('dlgNao').onclick = null; res(v); };
+    $('dlgSim').onclick = () => fim(true);
+    $('dlgNao').onclick = () => fim(false);
+    d.oncancel = () => fim(false);
+    d.showModal();
+  });
+}
+
+async function copiar(texto, ok) {
+  try { await navigator.clipboard.writeText(texto); toast(ok); }
+  catch { toast('Não deu para copiar neste aparelho'); }
+}
+
+function abrirWhatsApp(texto, fone) {
+  let n = String(fone || '').replace(/\D/g, '');
+  if (n.length === 10 || n.length === 11) n = '55' + n;
+  const url = (n.length >= 12 ? `https://wa.me/${n}` : 'https://wa.me/') + '?text=' + encodeURIComponent(texto);
+  window.open(url, '_blank', 'noopener');
+}
+
+/* ---------- configurações ---------- */
+const cfg = k => (st.config[k] ?? DEFAULTS[k]);
+
+function preencherConfig() {
+  for (const i of cfgInputs) if (document.activeElement !== i) i.value = cfg(i.id);
+}
+
+let tSave;
+function salvarConfig() {
+  clearTimeout(tSave);
+  tSave = setTimeout(() => {
+    const c = {};
+    for (const i of cfgInputs) c[i.id] = i.type === 'number' ? num(i.id) : i.value.trim();
+    store.saveConfig(c);
+  }, 500);
+}
+
+/* ---------- calculadora ---------- */
+function setWho(k) {
+  who = k; local.set('p3d-who', k);
+  document.querySelectorAll('#who button').forEach(b => b.setAttribute('aria-pressed', b.dataset.k === k));
+}
+
+function syncPresets() {
+  const v = String(num('lucro'));
+  document.querySelectorAll('#presets button').forEach(b => b.setAttribute('aria-pressed', b.dataset.v === v));
+}
+
+function calcular() {
+  const qtd = Math.max(1, Math.round(num('qtd')) || 1);
+  const horas = num('horas') + num('minutos') / 60;
+  const fil = num('peso') / 1000 * num('kg') / qtd;
+  const ene = num('watts') / 1000 * horas * num('kwh') / qtd;
+  const des = horas * num('desg') / qtd;
+  const ext = num('extras');
+  const falha = (fil + ene + des) * num('falha') / 100; // se a impressão falha, os extras não se perdem
+  const custo = fil + ene + des + ext + falha;
+  let preco = custo * (1 + num('lucro') / 100);
+  const a = num('arred');
+  if (a > 0) preco = Math.ceil(preco / a - 1e-9) * a;
+  const lucro = Math.max(0, preco - custo);
+  return { fil, ene, des, ext, falha, custo, preco, lucro };
+}
+
+function mostrarCalculo() {
+  const r = calcular();
+  const nm = $('nome').value.trim();
+  $('price').textContent = brl(r.preco);
+  $('cost').textContent = brl(r.custo);
+  $('profit').textContent = brl(r.lucro);
+  $('pieceName').textContent = nm ? `${nm} · feita por ${who}` : `Feita por ${who}`;
+  const partes = [['Filamento', r.fil, 'var(--c-fil)'], ['Energia', r.ene, 'var(--c-ene)'], ['Desgaste', r.des, 'var(--c-des)'],
+    ['Extras', r.ext, 'var(--c-ext)'], ['Falhas', r.falha, 'var(--c-fal)'], ['Seu lucro', r.lucro, 'var(--c-luc)', 'luc']];
+  const tot = partes.reduce((s, p) => s + p[1], 0) || 1;
+  $('bar').innerHTML = partes.map(p => `<i style="width:${p[1] / tot * 100}%;background:${p[2]}" title="${p[0]}"></i>`).join('');
+  $('legend').innerHTML = partes.filter(p => p[1] > 0.004).map(p => `<span class="${p[3] || ''}" style="--d:${p[2]}">${p[0]} ${brl(p[1])}</span>`).join('');
+  syncPresets();
+  atual = { ...r, nome: nm };
+}
+
+/* ---------- catálogo ---------- */
+function renderPecas() {
+  const ps = st.pecas;
+  const vendidas = ps.reduce((s, i) => s + (i.vendidas || 0), 0);
+  const ganho = ps.reduce((s, i) => s + (i.vendidas || 0) * i.preco, 0);
+  const lucro = ps.reduce((s, i) => s + (i.vendidas || 0) * (i.preco - i.custo), 0);
+  $('totPecas').innerHTML = `<div>Vendidas na escola<b>${vendidas}</b></div><div>Dinheiro recebido<b>${brl(ganho)}</b></div><div>Lucro de verdade<b>${brl(lucro)}</b></div>`;
+  $('listaPecas').innerHTML = ps.length ? ps.map(i => `<li>
+      <div><div class="nm"><span class="dot" style="background:${QUEM[i.who] || 'var(--coral)'}"></span>${esc(i.nome)}</div>
+      <div class="meta">${esc(i.who)} · custo ${brl(i.custo)} · vendidas: ${i.vendidas || 0}</div></div>
+      <div class="pr">${brl(i.preco)}</div>
+      <div class="acts">
+        <button class="sold" data-a="vendi" data-id="${i.id}">Vendi uma!</button>
+        <button data-a="desfazer" data-id="${i.id}">Desfazer venda</button>
+        <button class="go" data-a="orcar" data-id="${i.id}">Fazer orçamento</button>
+        <button data-a="apagar" data-id="${i.id}">Apagar</button>
+      </div></li>`).join('')
+    : '<li class="empty">Nenhuma peça no catálogo ainda. Calcule o preço e toque em “Salvar no catálogo”.</li>';
+}
+
+/* ---------- pedidos ---------- */
+const totalPedido = p => p.itens.reduce((s, i) => s + i.qtd * i.preco, 0);
+const sinalPedido = p => Math.round(totalPedido(p) * 50) / 100;
+
+function linhaItem(i) {
+  return i.qtd > 1 ? `• ${i.qtd}x ${i.nome} — ${brl(i.preco)} cada = ${brl(i.qtd * i.preco)}` : `• 1x ${i.nome} — ${brl(i.preco)}`;
+}
+
+function msgOrcamento(p) {
+  const total = totalPedido(p), sinal = sinalPedido(p), resto = total - sinal;
+  const pix = cfg('pix');
+  return [
+    '*DT 3D STUDIO* — Orçamento',
+    `Cliente: ${p.cliente}`, '',
+    ...p.itens.map(linhaItem), '',
+    `*Total: ${brl(total)}*`,
+    `Prazo de entrega: ${p.prazo} ${p.prazo === 1 ? 'dia' : 'dias'} após o sinal`,
+    `Orçamento válido até ${dataBR(p.criada + cfg('validade') * DIA)}`, '',
+    `*Para confirmar o pedido:* envie o sinal de 50% (${brl(sinal)}) pelo Pix e mande o comprovante aqui. O restante (${brl(resto)}) é pago na entrega.`,
+    pix ? `Chave Pix: ${pix}` : 'Chave Pix: enviamos em seguida', '',
+    `Siga a gente no Instagram: ${INSTAGRAM}`,
+  ].join('\n');
+}
+
+function msgConfirmacao(p) {
+  const sinal = sinalPedido(p), resto = totalPedido(p) - sinal;
+  return [
+    '*DT 3D STUDIO* — Pedido confirmado! ✅',
+    `Oi, ${p.cliente}! Recebemos seu sinal de ${brl(sinal)}.`,
+    'Já vamos começar a imprimir suas peças.',
+    `Previsão de entrega: ${dataBR(p.sinalEm + p.prazo * DIA)}`,
+    `Restante a pagar na entrega: ${brl(resto)}`,
+    'Obrigado pela confiança!',
+    INSTAGRAM,
+  ].join('\n');
+}
+
+function renderPedidos() {
+  const ps = st.pedidos;
+  const recebido = ps.reduce((s, p) => s + (p.status === 'entregue' ? totalPedido(p) : p.status === 'producao' ? sinalPedido(p) : 0), 0);
+  const aReceber = ps.filter(p => p.status === 'producao').reduce((s, p) => s + totalPedido(p) - sinalPedido(p), 0);
+  const emProd = ps.filter(p => p.status === 'producao').length;
+  $('totPedidos').innerHTML = `<div>Para imprimir<b>${emProd}</b></div><div>Já recebido<b>${brl(recebido)}</b></div><div>A receber na entrega<b>${brl(aReceber)}</b></div>`;
+  $('listaPedidos').innerHTML = ps.length ? ps.map(p => {
+    const s = STATUS[p.status] || STATUS.aguardando;
+    const total = totalPedido(p), sinal = sinalPedido(p);
+    const info = p.status === 'aguardando'
+      ? `<span>Sinal: <b>${brl(sinal)}</b></span><span>Válido até <b>${dataBR(p.criada + cfg('validade') * DIA)}</b></span>`
+      : p.status === 'producao'
+        ? `<span>Sinal pago: <b>${brl(sinal)}</b></span><span>Falta: <b>${brl(total - sinal)}</b></span><span>Entrega: <b>${dataBR(p.sinalEm + p.prazo * DIA)}</b></span>`
+        : `<span>Pago: <b>${brl(total)}</b></span><span>Entregue em <b>${dataBR(p.entregueEm)}</b></span>`;
+    const bts = {
+      aguardando: `<button class="wa" data-a="msgOrc" data-id="${p.id}">Enviar orçamento</button>
+        <button class="go" data-a="sinal" data-id="${p.id}">Recebi o sinal</button>
+        <button data-a="editar" data-id="${p.id}">Editar</button>`,
+      producao: `<button class="wa" data-a="msgConf" data-id="${p.id}">Enviar confirmação</button>
+        <button class="go" data-a="entregue" data-id="${p.id}">Entreguei</button>
+        <button data-a="voltar" data-id="${p.id}">Desfazer sinal</button>`,
+      entregue: `<button data-a="reabrir" data-id="${p.id}">Desfazer entrega</button>`,
+    }[p.status] || '';
+    return `<li>
+      <div class="ph"><div><div class="nm">${esc(p.cliente)}</div><div class="meta">Orçamento de ${dataBR(p.criada)}</div></div>
+      <span class="st" style="--s:${s.cor}">${s.nome}</span></div>
+      <ul class="pl">${p.itens.map(i => `<li><span>${i.qtd}x ${esc(i.nome)}</span><span>${brl(i.qtd * i.preco)}</span></li>`).join('')}
+      <li><b>Total</b><b>${brl(total)}</b></li></ul>
+      <div class="pv">${info}</div>
+      <div class="acts">${bts}
+        <button data-a="copiarMsg" data-id="${p.id}">Copiar mensagem</button>
+        <button data-a="apagarPedido" data-id="${p.id}">Apagar</button></div></li>`;
+  }).join('') : '<li class="empty">Nenhum pedido ainda. Toque em “Novo orçamento” ou em “Fazer orçamento” no catálogo.</li>';
+}
+
+/* formulário de pedido */
+function opcoesPecas(sel) {
+  return st.pecas.map(p => `<option value="${p.id}"${p.id === sel ? ' selected' : ''}>${esc(p.nome)} — ${brl(p.preco)}</option>`).join('');
+}
+function linhaForm(item = {}) {
+  const div = document.createElement('div');
+  div.className = 'it';
+  div.innerHTML = `<select aria-label="Peça">${opcoesPecas(item.pecaId)}</select>
+    <input type="number" inputmode="numeric" min="1" step="1" value="${item.qtd || 1}" aria-label="Quantidade">
+    <button type="button" aria-label="Tirar peça">×</button>`;
+  $('itensForm').appendChild(div);
+}
+function itensDoForm() {
+  return [...$('itensForm').children].map(div => {
+    const peca = st.pecas.find(p => p.id === div.querySelector('select').value);
+    const qtd = Math.max(1, Math.round(parseFloat(div.querySelector('input').value)) || 1);
+    return peca && { pecaId: peca.id, nome: peca.nome, preco: peca.preco, custo: peca.custo, qtd };
+  }).filter(Boolean).reduce((lista, i) => {   // a mesma peça escolhida duas vezes vira uma linha só
+    const j = lista.find(x => x.pecaId === i.pecaId);
+    if (j) j.qtd += i.qtd; else lista.push(i);
+    return lista;
+  }, []);
+}
+function atualizarTotalForm() {
+  const p = { itens: itensDoForm() };
+  $('formTotal').textContent = brl(totalPedido(p));
+  $('formSinal').textContent = 'Sinal de 50%: ' + brl(sinalPedido(p));
+}
+function abrirForm(pedido, pecaId) {
+  if (!st.pecas.length) { toast('Primeiro salve uma peça no catálogo'); location.hash = 'calcular'; return; }
+  editando = pedido ? pedido.id : null;
+  $('formTitulo').textContent = pedido ? 'Editar orçamento' : 'Novo orçamento';
+  $('cliente').value = pedido ? pedido.cliente : '';
+  $('fone').value = pedido ? (pedido.fone || '') : '';
+  $('prazo').value = pedido ? pedido.prazo : cfg('prazoPadrao');
+  $('itensForm').innerHTML = '';
+  (pedido ? pedido.itens : [{ pecaId: pecaId || st.pecas[0].id, qtd: 1 }]).forEach(linhaForm);
+  $('formErro').textContent = '';
+  $('formPedido').hidden = false;
+  atualizarTotalForm();
+  $('cliente').focus();
+}
+function fecharForm() { $('formPedido').hidden = true; editando = null; }
+
+/* ---------- navegação ---------- */
+const VIEWS = ['calcular', 'pecas', 'pedidos', 'ajustes'];
+function rota() {
+  const v = VIEWS.includes(location.hash.slice(1)) ? location.hash.slice(1) : 'calcular';
+  VIEWS.forEach(n => { $('v-' + n).hidden = n !== v; });
+  document.querySelectorAll('#tabs a').forEach(a => {
+    if (a.dataset.v === v) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
+  });
+  window.scrollTo(0, 0);
+}
+
+function render() {
+  preencherConfig();
+  mostrarCalculo();
+  renderPecas();
+  renderPedidos();
+}
+
+/* ---------- eventos ---------- */
+function ligarEventos() {
+  document.querySelectorAll('#v-calcular input').forEach(i => i.addEventListener('input', () => { mostrarCalculo(); if (i.dataset.cfg !== undefined) salvarConfig(); }));
+  cfgInputs.forEach(i => { if (!i.closest('#v-calcular')) i.addEventListener('input', () => { mostrarCalculo(); salvarConfig(); }); });
+  $('who').addEventListener('click', e => { const b = e.target.closest('button'); if (b) { setWho(b.dataset.k); mostrarCalculo(); } });
+  $('presets').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; $('lucro').value = b.dataset.v; mostrarCalculo(); salvarConfig(); });
+
+  $('save').addEventListener('click', () => {
+    mostrarCalculo();
+    if (!atual.nome) { toast('Dê um nome para a peça'); $('nome').focus(); return; }
+    store.savePeca({ id: uid(), nome: atual.nome, who, preco: atual.preco, custo: atual.custo, vendidas: 0, criada: Date.now() });
+    toast('Salvo no catálogo!');
+  });
+
+  $('listaPecas').addEventListener('click', async e => {
+    const b = e.target.closest('button[data-a]'); if (!b) return;
+    const p = st.pecas.find(x => x.id === b.dataset.id); if (!p) return;
+    const a = b.dataset.a;
+    if (a === 'vendi') { store.savePeca({ ...p, vendidas: (p.vendidas || 0) + 1 }); toast('Mais uma venda!'); }
+    if (a === 'desfazer' && p.vendidas > 0) store.savePeca({ ...p, vendidas: p.vendidas - 1 });
+    if (a === 'orcar') { location.hash = 'pedidos'; abrirForm(null, p.id); }
+    if (a === 'apagar' && await perguntar(`Apagar “${p.nome}” do catálogo?`, 'Apagar', 'Cancelar')) store.deletePeca(p.id);
+  });
+
+  $('copiarCatalogo').addEventListener('click', () => {
+    const t = '*DT 3D STUDIO* — Pecinhas à venda\n' + (st.pecas.length ? st.pecas.map(i => `• ${i.nome} — ${brl(i.preco)}`).join('\n') : '(catálogo vazio)') + `\n\nSiga a gente no Instagram: ${INSTAGRAM}`;
+    copiar(t, 'Catálogo copiado! Cole no WhatsApp.');
+  });
+  $('zerar').addEventListener('click', async () => {
+    if (!await perguntar('Zerar a contagem de vendas na escola de todas as peças?', 'Zerar', 'Cancelar')) return;
+    st.pecas.filter(p => p.vendidas).forEach(p => store.savePeca({ ...p, vendidas: 0 }));
+    toast('Vendas zeradas');
+  });
+
+  $('novoPedido').addEventListener('click', () => abrirForm());
+  $('cancelarPedido').addEventListener('click', fecharForm);
+  $('addItem').addEventListener('click', () => { linhaForm(); atualizarTotalForm(); });
+  $('itensForm').addEventListener('input', atualizarTotalForm);
+  $('itensForm').addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    if ($('itensForm').children.length > 1) { b.parentElement.remove(); atualizarTotalForm(); }
+  });
+  $('formPedido').addEventListener('submit', e => {
+    e.preventDefault();
+    const cliente = $('cliente').value.trim();
+    const itens = itensDoForm();
+    if (!cliente) { $('formErro').textContent = 'Coloque o nome do cliente.'; $('cliente').focus(); return; }
+    if (!itens.length) { $('formErro').textContent = 'Escolha pelo menos uma peça.'; return; }
+    const antigo = st.pedidos.find(p => p.id === editando);
+    store.savePedido({
+      ...(antigo || { id: uid(), status: 'aguardando', criada: Date.now() }),
+      cliente, fone: $('fone').value.trim(), prazo: Math.round(num('prazo')), itens,
+    });
+    fecharForm();
+    toast(antigo ? 'Orçamento atualizado' : 'Orçamento salvo! Agora toque em “Enviar orçamento”.');
+  });
+
+  $('listaPedidos').addEventListener('click', async e => {
+    const b = e.target.closest('button[data-a]'); if (!b) return;
+    const p = st.pedidos.find(x => x.id === b.dataset.id); if (!p) return;
+    const a = b.dataset.a;
+    if (a === 'msgOrc') {
+      if (!cfg('pix') && !await perguntar('A chave Pix ainda não foi cadastrada em Ajustes. Enviar o orçamento mesmo assim?', 'Enviar', 'Voltar')) return;
+      abrirWhatsApp(msgOrcamento(p), p.fone);
+    }
+    if (a === 'msgConf') abrirWhatsApp(msgConfirmacao(p), p.fone);
+    if (a === 'copiarMsg') copiar(p.status === 'producao' ? msgConfirmacao(p) : msgOrcamento(p), 'Mensagem copiada!');
+    if (a === 'sinal' && await perguntar(`Confirmar que ${p.cliente} pagou o sinal de ${brl(sinalPedido(p))}?`, 'Recebi', 'Ainda não')) {
+      store.savePedido({ ...p, status: 'producao', sinalEm: Date.now() });
+      toast('Pedido em produção! Envie a confirmação.');
+    }
+    if (a === 'entregue' && await perguntar(`Entregou e recebeu os ${brl(totalPedido(p) - sinalPedido(p))} restantes?`, 'Sim', 'Ainda não')) {
+      store.savePedido({ ...p, status: 'entregue', entregueEm: Date.now() });
+      toast('Pedido concluído!');
+    }
+    if (a === 'voltar') store.savePedido({ ...p, status: 'aguardando', sinalEm: null });
+    if (a === 'reabrir') store.savePedido({ ...p, status: 'producao', entregueEm: null });
+    if (a === 'editar') abrirForm(p);
+    if (a === 'apagarPedido' && await perguntar(`Apagar o pedido de ${p.cliente}?`, 'Apagar', 'Cancelar')) store.deletePedido(p.id);
+  });
+
+  $('copiarCodigo').addEventListener('click', () => copiar(local.get('p3d-codigo', ''), 'Código copiado!'));
+  $('sair').addEventListener('click', async () => {
+    if (!await perguntar('Sair deste aparelho? Os dados continuam na nuvem; para voltar, digite o código de novo.', 'Sair', 'Cancelar')) return;
+    local.del('p3d-codigo'); location.reload();
+  });
+
+  window.addEventListener('hashchange', rota);
+}
+
+/* ---------- início ---------- */
+async function iniciar(codigo) {
+  $('login').hidden = true;
+  $('app').hidden = false; $('tabs').hidden = false;
+  const sync = $('sync');
+  store = await abrirStore(codigo, s => { st = s; sync.className = 'sync' + (store?.modo === 'nuvem' ? ' on' : ''); render(); },
+    () => { sync.textContent = 'Sem conexão'; sync.className = 'sync err'; });
+  if (store.modo === 'nuvem') {
+    sync.textContent = 'Sincronizado'; sync.classList.add('on');
+    $('blocoCodigo').hidden = false; $('meuCodigo').textContent = codigo;
+  }
+  st = store.estado;
+  render(); rota();
+}
+
+function telaLogin() {
+  $('login').hidden = false;
+  const erro = t => { $('loginErro').textContent = t; };
+  $('entrar').addEventListener('click', async () => {
+    const c = normalizarCodigo($('codigo').value);
+    if (!c) return erro('O código tem o formato DT-XXXX-XXXX-XXXX.');
+    erro(''); $('entrar').disabled = true; $('entrar').textContent = 'Procurando…';
+    try {
+      if (!await codigoExiste(c)) { erro('Não achei esse código. Confira as letras e os números.'); return; }
+      local.set('p3d-codigo', c); iniciar(c);
+    } catch { erro('Sem internet agora. Tente de novo daqui a pouco.'); }
+    finally { $('entrar').disabled = false; $('entrar').textContent = 'Entrar'; }
+  });
+  $('criar').addEventListener('click', async () => {
+    const c = novoCodigo();
+    $('criar').disabled = true; $('criar').textContent = 'Criando…';
+    try {
+      await criarFamilia(c, DEFAULTS);
+      local.set('p3d-codigo', c);
+      await iniciar(c);
+      location.hash = 'ajustes';
+      toast('Código criado! Anote ele em Ajustes.');
+    } catch { erro('Não consegui criar agora. Confira a internet e tente de novo.'); }
+    finally { $('criar').disabled = false; $('criar').textContent = 'Criar um código novo'; }
+  });
+}
+
+ligarEventos();
+setWho(who);
+const codigo = local.get('p3d-codigo', null);
+if (cloudEnabled && !codigo) telaLogin();
+else iniciar(cloudEnabled ? codigo : null);
+
+if ('serviceWorker' in navigator && location.protocol === 'https:') {
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+}
