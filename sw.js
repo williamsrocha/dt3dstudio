@@ -1,6 +1,6 @@
 // Service worker: rede primeiro (o app sempre abre na versão mais nova quando há internet)
 // e cópia guardada quando está sem internet.
-const CACHE = 'dt3d-v7';
+const CACHE = 'dt3d-v8';
 const ARQUIVOS = ['./', 'index.html', 'styles.css', 'app.js', 'store.js', 'firebase-config.js', 'manifest.webmanifest', 'icons/icon.svg', 'icons/icon-192.png'];
 
 self.addEventListener('install', e => {
@@ -13,7 +13,8 @@ self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
   if (e.request.method !== 'GET' || url.origin !== location.origin) return;
   e.respondWith(
-    fetch(e.request).then(r => {
+    // cache: 'no-cache' obriga a conferir no servidor se há versão nova (o GitHub Pages guarda por 10 min)
+    fetch(e.request.url, { cache: 'no-cache', credentials: 'same-origin' }).then(r => {
       const copia = r.clone();
       caches.open(CACHE).then(c => c.put(e.request, copia));
       return r;

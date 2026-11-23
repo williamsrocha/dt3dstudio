@@ -470,5 +470,16 @@ if (cloudEnabled && !codigo) telaLogin();
 else iniciar(cloudEnabled ? codigo : null);
 
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
-  navigator.serviceWorker.register('sw.js').catch(() => {});
+  // Quando sai uma versão nova do app, recarrega uma vez para já mostrar as mudanças.
+  const tinhaVersao = !!navigator.serviceWorker.controller;
+  let recarregou = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (tinhaVersao && !recarregou) { recarregou = true; location.reload(); }
+  });
+  navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' })
+    .then(reg => {
+      const conferir = () => reg.update().catch(() => {});
+      document.addEventListener('visibilitychange', () => { if (!document.hidden) conferir(); });
+    })
+    .catch(() => {});
 }
