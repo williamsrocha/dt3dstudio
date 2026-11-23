@@ -89,8 +89,8 @@
           <div class="unit"><input id="minutos" type="number" inputmode="numeric" min="0" max="59" step="5" value="0" placeholder="0" aria-label="Minutos"><span>min</span></div>
         </div>
 
-        <label for="extras">Extras por peça <span class="hint">argola de chaveiro, ímã, tinta, saquinho…</span></label>
-        <div class="unit"><input id="extras" type="number" inputmode="decimal" min="0" step="0.10" value="0"><span>R$</span></div>
+        <label for="extras">Extras por peça <span class="hint">argola de chaveiro, ímã, tinta, saquinho… é só digitar os números</span></label>
+        <div class="unit"><input id="extras" type="text" inputmode="numeric" data-money value="0,00"><span>R$</span></div>
 
         <label for="lucro">Lucro em cima do custo <span class="hint">escolha um botão ou digite a porcentagem</span></label>
         <div class="presets" id="presets">
@@ -172,16 +172,16 @@
 
       <h3>Impressora</h3>
       <div class="row">
-        <div><label for="kg">Preço do rolo de 1 kg</label><div class="unit"><input id="kg" data-cfg type="number" inputmode="decimal" min="0" step="1" value="100"><span>R$</span></div></div>
+        <div><label for="kg">Preço do rolo de 1 kg</label><div class="unit"><input id="kg" data-cfg type="text" inputmode="numeric" data-money value="100,00"><span>R$</span></div></div>
         <div><label for="watts">Potência da impressora</label><div class="unit"><input id="watts" data-cfg type="number" inputmode="numeric" min="0" step="10" value="120"><span>W</span></div></div>
       </div>
       <div class="row">
-        <div><label for="kwh">Tarifa de energia</label><div class="unit"><input id="kwh" data-cfg type="number" inputmode="decimal" min="0" step="0.01" value="0.95"><span>R$/kWh</span></div></div>
-        <div><label for="desg">Desgaste da máquina</label><div class="unit"><input id="desg" data-cfg type="number" inputmode="decimal" min="0" step="0.05" value="0.30"><span>R$/h</span></div></div>
+        <div><label for="kwh">Tarifa de energia</label><div class="unit"><input id="kwh" data-cfg type="text" inputmode="numeric" data-money value="0,95"><span>R$/kWh</span></div></div>
+        <div><label for="desg">Desgaste da máquina</label><div class="unit"><input id="desg" data-cfg type="text" inputmode="numeric" data-money value="0,30"><span>R$/h</span></div></div>
       </div>
       <div class="row">
         <div><label for="falha">Reserva para falhas <span class="hint">sobre filamento, luz e desgaste</span></label><div class="unit"><input id="falha" data-cfg type="number" inputmode="numeric" min="0" step="5" value="10"><span>%</span></div></div>
-        <div><label for="arred">Arredondar para</label><div class="unit"><input id="arred" data-cfg type="number" inputmode="decimal" min="0" step="0.5" value="0.50"><span>R$</span></div></div>
+        <div><label for="arred">Arredondar para</label><div class="unit"><input id="arred" data-cfg type="text" inputmode="numeric" data-money value="0,50"><span>R$</span></div></div>
       </div>
       <p class="note">Valores iniciais são estimativas: confira o preço do filamento e a tarifa na conta de luz.</p>
 

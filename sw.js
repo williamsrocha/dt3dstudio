@@ -1,6 +1,6 @@
 // Service worker: rede primeiro (o app sempre abre na versão mais nova quando há internet)
 // e cópia guardada quando está sem internet.
-const CACHE = 'dt3d-v8';
+const CACHE = 'dt3d-v9';
 const ARQUIVOS = ['./', 'index.html', 'styles.css', 'app.js', 'store.js', 'firebase-config.js', 'manifest.webmanifest', 'icons/icon.svg', 'icons/icon-192.png'];
 
 self.addEventListener('install', e => {

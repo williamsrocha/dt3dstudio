@@ -11,7 +11,14 @@ const STATUS = {
 
 const $ = id => document.getElementById(id);
 const brl = v => 'R$ ' + (Math.round((v || 0) * 100) / 100).toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-const num = id => { const v = parseFloat(String($(id).value).replace(',', '.')); return isFinite(v) && v >= 0 ? v : 0; };
+const num = id => { const v = parseFloat(String($(id).value).replace(/\./g, '').replace(',', '.')); return isFinite(v) && v >= 0 ? v : 0; };
+// Campos de dinheiro estilo app de banco: só números, a vírgula se ajusta sozinha (8 → 0,08 → 0,80).
+const fmtMoney = v => (Math.round((+v || 0) * 100) / 100).toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+function mascaraDinheiro(i) {
+  const centavos = parseInt(i.value.replace(/\D/g, '') || '0', 10);
+  i.value = fmtMoney(centavos / 100);
+  try { i.setSelectionRange(i.value.length, i.value.length); } catch { /* sem cursor */ }
+}
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const dataBR = t => new Date(t).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
 const DIA = 86400000;
@@ -55,7 +62,7 @@ function abrirWhatsApp(texto, fone) {
 const cfg = k => (st.config[k] ?? DEFAULTS[k]);
 
 function preencherConfig() {
-  for (const i of cfgInputs) if (document.activeElement !== i) i.value = cfg(i.id);
+  for (const i of cfgInputs) if (document.activeElement !== i) i.value = i.dataset.money !== undefined ? fmtMoney(cfg(i.id)) : cfg(i.id);
 }
 
 let tSave;
@@ -63,7 +70,7 @@ function salvarConfig() {
   clearTimeout(tSave);
   tSave = setTimeout(() => {
     const c = {};
-    for (const i of cfgInputs) c[i.id] = i.type === 'number' ? num(i.id) : i.value.trim();
+    for (const i of cfgInputs) c[i.id] = (i.type === 'number' || i.dataset.money !== undefined) ? num(i.id) : i.value.trim();
     store.saveConfig(c);
   }, 500);
 }
@@ -295,12 +302,24 @@ function render() {
 
 /* ---------- eventos ---------- */
 function ligarEventos() {
+  // dinheiro: a máscara roda antes do cálculo (listener registrado primeiro)
+  document.querySelectorAll('[data-money]').forEach(i => {
+    i.addEventListener('input', () => mascaraDinheiro(i));
+    i.addEventListener('focus', () => setTimeout(() => { try { i.setSelectionRange(i.value.length, i.value.length); } catch { /* nada */ } }));
+  });
+  // números comuns: ao tocar, seleciona tudo para o que for digitado substituir o valor
+  document.querySelectorAll('input[type=number]').forEach(i => {
+    i.addEventListener('focus', () => { try { i.select(); } catch { /* nada */ } i.dataset.sel = '1'; });
+    // o toque/clique que deu foco não pode desfazer a seleção
+    i.addEventListener('mouseup', e => { if (i.dataset.sel) { e.preventDefault(); delete i.dataset.sel; } });
+    i.addEventListener('input', () => { delete i.dataset.sel; });
+  });
   document.querySelectorAll('#v-calcular input').forEach(i => i.addEventListener('input', () => { mostrarCalculo(); if (i.dataset.cfg !== undefined) salvarConfig(); }));
   cfgInputs.forEach(i => { if (!i.closest('#v-calcular')) i.addEventListener('input', () => { mostrarCalculo(); salvarConfig(); }); });
   $('limpar').addEventListener('click', () => {
     // volta a calculadora para o começo; não mexe no catálogo, nos pedidos nem nos Ajustes
     $('nome').value = ''; $('peso').value = ''; $('qtd').value = 1;
-    $('horas').value = ''; $('minutos').value = ''; $('extras').value = 0;
+    $('horas').value = ''; $('minutos').value = ''; $('extras').value = '0,00';
     mostrarCalculo(); window.scrollTo(0, 0); toast('Campos limpos');
   });
   $('home').addEventListener('click', e => {
