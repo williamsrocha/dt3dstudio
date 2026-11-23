@@ -56,7 +56,7 @@
         <div class="bar" id="bar"></div>
         <div class="legend" id="legend"></div>
         <button class="btn save" id="save" type="button">Salvar no catálogo</button>
-        <button class="btn orcar" id="orcar" type="button">Fazer orçamento para um cliente</button>
+        <button class="btn orcar" id="orcar" type="button">Mandar o preço para um cliente<small>o nome disso é orçamento</small></button>
       </section>
 
       <section class="card">
@@ -119,12 +119,12 @@
     <div class="card">
       <div class="head">
         <h2>Pedidos</h2>
-        <button class="btn primary small" id="novoPedido" type="button">Novo orçamento</button>
+        <button class="btn primary small" id="novoPedido" type="button">Novo pedido</button>
       </div>
       <div class="totals" id="totPedidos"></div>
 
       <form id="formPedido" class="form" hidden novalidate>
-        <h3 id="formTitulo">Novo orçamento</h3>
+        <h3 id="formTitulo">Novo pedido</h3>
         <div class="row">
           <div><label for="cliente">Nome do cliente</label><input id="cliente" type="text" autocomplete="off" placeholder="Ex.: Pedro"></div>
           <div><label for="fone">WhatsApp <span class="hint">com DDD, opcional</span></label><input id="fone" type="tel" inputmode="tel" placeholder="(19) 99999-9999"></div>
@@ -134,11 +134,11 @@
         <button class="btn ghost small" id="addItem" type="button">Adicionar peça</button>
         <div class="row">
           <div><label for="prazo">Prazo de entrega</label><div class="unit"><input id="prazo" type="number" inputmode="numeric" min="0" step="1" value="3"><span>dias</span></div></div>
-          <div class="sum"><small>Total</small><b id="formTotal">R$ 0,00</b><small id="formSinal">Sinal de 50%: R$ 0,00</small></div>
+          <div class="sum"><small>Total</small><b id="formTotal">R$ 0,00</b><small id="formSinal">Metade para começar: R$ 0,00</small></div>
         </div>
         <p class="erro" id="formErro" role="alert"></p>
         <div class="tools">
-          <button class="btn primary" type="submit">Salvar orçamento</button>
+          <button class="btn primary" type="submit">Salvar pedido</button>
           <button class="btn ghost" id="cancelarPedido" type="button">Cancelar</button>
         </div>
       </form>

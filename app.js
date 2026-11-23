@@ -4,8 +4,8 @@ const INSTAGRAM = '@dt3dstudio';
 const DEFAULTS = { kg: 100, watts: 120, kwh: 0.95, desg: 0.30, falha: 10, arred: 0.5, lucro: 100, pix: '', validade: 7, prazoPadrao: 3 };
 const QUEM = { Davi: 'var(--davi)', Theo: 'var(--theo)' };
 const STATUS = {
-  aguardando: { nome: 'Aguardando sinal', cor: 'var(--st-agu)' },
-  producao: { nome: 'Em produção', cor: 'var(--st-pro)' },
+  aguardando: { nome: 'Esperando pagar a metade', cor: 'var(--st-agu)' },
+  producao: { nome: 'Imprimindo', cor: 'var(--st-pro)' },
   entregue: { nome: 'Entregue', cor: 'var(--st-ent)' },
 };
 
@@ -125,7 +125,7 @@ function renderPecas() {
       <div class="acts">
         <button class="sold" data-a="vendi" data-id="${i.id}">Vendi uma!</button>
         <button data-a="desfazer" data-id="${i.id}">Desfazer venda</button>
-        <button class="go" data-a="orcar" data-id="${i.id}">Fazer orçamento</button>
+        <button class="go" data-a="orcar" data-id="${i.id}">Mandar o preço</button>
         <button data-a="apagar" data-id="${i.id}">Apagar</button>
       </div></li>`).join('')
     : '<li class="empty">Nenhuma peça no catálogo ainda. Calcule o preço e toque em “Salvar no catálogo”.</li>';
@@ -178,21 +178,21 @@ function renderPedidos() {
     const s = STATUS[p.status] || STATUS.aguardando;
     const total = totalPedido(p), sinal = sinalPedido(p);
     const info = p.status === 'aguardando'
-      ? `<span>Sinal: <b>${brl(sinal)}</b></span><span>Válido até <b>${dataBR(p.criada + cfg('validade') * DIA)}</b></span>`
+      ? `<span>Metade: <b>${brl(sinal)}</b></span><span>Preço vale até <b>${dataBR(p.criada + cfg('validade') * DIA)}</b></span>`
       : p.status === 'producao'
-        ? `<span>Sinal pago: <b>${brl(sinal)}</b></span><span>Falta: <b>${brl(total - sinal)}</b></span><span>Entrega: <b>${dataBR(p.sinalEm + p.prazo * DIA)}</b></span>`
+        ? `<span>Metade paga: <b>${brl(sinal)}</b></span><span>Falta: <b>${brl(total - sinal)}</b></span><span>Entrega: <b>${dataBR(p.sinalEm + p.prazo * DIA)}</b></span>`
         : `<span>Pago: <b>${brl(total)}</b></span><span>Entregue em <b>${dataBR(p.entregueEm)}</b></span>`;
     const bts = {
-      aguardando: `<button class="wa" data-a="msgOrc" data-id="${p.id}">Enviar orçamento</button>
-        <button class="go" data-a="sinal" data-id="${p.id}">Recebi o sinal</button>
+      aguardando: `<button class="wa" data-a="msgOrc" data-id="${p.id}">Mandar preço no WhatsApp</button>
+        <button class="go" data-a="sinal" data-id="${p.id}">Cliente pagou a metade</button>
         <button data-a="editar" data-id="${p.id}">Editar</button>`,
-      producao: `<button class="wa" data-a="msgConf" data-id="${p.id}">Enviar confirmação</button>
-        <button class="go" data-a="entregue" data-id="${p.id}">Entreguei</button>
-        <button data-a="voltar" data-id="${p.id}">Desfazer sinal</button>`,
+      producao: `<button class="wa" data-a="msgConf" data-id="${p.id}">Avisar que vamos fazer</button>
+        <button class="go" data-a="entregue" data-id="${p.id}">Entreguei e recebi o resto</button>
+        <button data-a="voltar" data-id="${p.id}">Ainda não pagou</button>`,
       entregue: `<button data-a="reabrir" data-id="${p.id}">Desfazer entrega</button>`,
     }[p.status] || '';
     return `<li>
-      <div class="ph"><div><div class="nm">${esc(p.cliente)}</div><div class="meta">Orçamento de ${dataBR(p.criada)}</div></div>
+      <div class="ph"><div><div class="nm">${esc(p.cliente)}</div><div class="meta">Pedido de ${dataBR(p.criada)}</div></div>
       <span class="st" style="--s:${s.cor}">${s.nome}</span></div>
       <ul class="pl">${p.itens.map(i => `<li><span>${i.qtd}x ${esc(i.nome)}</span><span>${brl(i.qtd * i.preco)}</span></li>`).join('')}
       <li><b>Total</b><b>${brl(total)}</b></li></ul>
@@ -200,11 +200,11 @@ function renderPedidos() {
       <div class="acts">${bts}
         <button data-a="copiarMsg" data-id="${p.id}">Copiar mensagem</button>
         <button data-a="apagarPedido" data-id="${p.id}">Apagar</button></div></li>`;
-  }).join('') : '<li class="empty">Nenhum pedido ainda. Toque em “Novo orçamento” ou em “Fazer orçamento” no catálogo.</li>';
+  }).join('') : '<li class="empty">Nenhum pedido ainda. Toque em “Novo pedido” ou em “Mandar o preço” no catálogo.</li>';
 }
 
 async function enviarOrcamento(p) {
-  if (!cfg('pix') && !await perguntar('A chave Pix ainda não foi cadastrada em Ajustes. Enviar o orçamento mesmo assim?', 'Enviar', 'Voltar')) return;
+  if (!cfg('pix') && !await perguntar('A chave Pix ainda não foi cadastrada em Ajustes (peça ao papai). Mandar mesmo assim?', 'Mandar', 'Voltar')) return;
   abrirWhatsApp(msgOrcamento(p), p.fone);
 }
 
@@ -234,12 +234,12 @@ function itensDoForm() {
 function atualizarTotalForm() {
   const p = { itens: itensDoForm() };
   $('formTotal').textContent = brl(totalPedido(p));
-  $('formSinal').textContent = 'Sinal de 50%: ' + brl(sinalPedido(p));
+  $('formSinal').textContent = 'Metade para começar: ' + brl(sinalPedido(p));
 }
 function abrirForm(pedido, pecaId) {
   if (!st.pecas.length) { toast('Primeiro salve uma peça no catálogo'); location.hash = 'calcular'; return; }
   editando = pedido ? pedido.id : null;
-  $('formTitulo').textContent = pedido ? 'Editar orçamento' : 'Novo orçamento';
+  $('formTitulo').textContent = pedido ? 'Editar pedido' : 'Novo pedido';
   $('cliente').value = pedido ? pedido.cliente : '';
   $('fone').value = pedido ? (pedido.fone || '') : '';
   $('prazo').value = pedido ? pedido.prazo : cfg('prazoPadrao');
@@ -361,7 +361,7 @@ function ligarEventos() {
     };
     store.savePedido(pedido);
     fecharForm();
-    if (await perguntar(`Orçamento ${antigo ? 'atualizado' : 'salvo'}! Enviar agora para ${cliente} pelo WhatsApp?`, 'Enviar pelo WhatsApp', 'Depois')) enviarOrcamento(pedido);
+    if (await perguntar(`Pedido ${antigo ? 'atualizado' : 'salvo'}! Mandar o preço para ${cliente} agora pelo WhatsApp?`, 'Mandar agora', 'Depois')) enviarOrcamento(pedido);
   });
 
   $('listaPedidos').addEventListener('click', async e => {
@@ -371,11 +371,11 @@ function ligarEventos() {
     if (a === 'msgOrc') enviarOrcamento(p);
     if (a === 'msgConf') abrirWhatsApp(msgConfirmacao(p), p.fone);
     if (a === 'copiarMsg') copiar(p.status === 'producao' ? msgConfirmacao(p) : msgOrcamento(p), 'Mensagem copiada!');
-    if (a === 'sinal' && await perguntar(`Confirmar que ${p.cliente} pagou o sinal de ${brl(sinalPedido(p))}?`, 'Recebi', 'Ainda não')) {
+    if (a === 'sinal' && await perguntar(`${p.cliente} pagou a metade (${brl(sinalPedido(p))})? Confira se o dinheiro caiu no Pix.`, 'Pagou', 'Ainda não')) {
       store.savePedido({ ...p, status: 'producao', sinalEm: Date.now() });
-      toast('Pedido em produção! Envie a confirmação.');
+      toast('Hora de imprimir! Toque em “Avisar que vamos fazer”.');
     }
-    if (a === 'entregue' && await perguntar(`Entregou e recebeu os ${brl(totalPedido(p) - sinalPedido(p))} restantes?`, 'Sim', 'Ainda não')) {
+    if (a === 'entregue' && await perguntar(`Entregou a peça e recebeu o resto (${brl(totalPedido(p) - sinalPedido(p))})?`, 'Sim', 'Ainda não')) {
       store.savePedido({ ...p, status: 'entregue', entregueEm: Date.now() });
       toast('Pedido concluído!');
     }
