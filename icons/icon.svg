@@ -1,8 +1,16 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-<rect width="512" height="512" rx="112" fill="#2347ff"/>
-<circle cx="256" cy="256" r="190" fill="#fff"/>
-<circle cx="256" cy="256" r="150" fill="#d93a1f"/>
-<circle cx="256" cy="256" r="150" fill="none" stroke="#ff8a70" stroke-width="8" stroke-dasharray="12 16"/>
-<circle cx="256" cy="256" r="62" fill="#fff"/>
-<circle cx="256" cy="256" r="30" fill="#2347ff"/>
+<defs>
+<linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1c1c1f"/><stop offset="1" stop-color="#050506"/></linearGradient>
+<linearGradient id="or" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff9a2e"/><stop offset="1" stop-color="#ff5a00"/></linearGradient>
+<linearGradient id="wh" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#d9dbe0"/></linearGradient>
+</defs>
+<rect width="512" height="512" rx="112" fill="url(#bg)"/>
+<path d="M60 250 L250 60 H300 L60 300Z" fill="#26262a"/>
+<path d="M452 262 L262 452 H212 L452 212Z" fill="#26262a"/>
+<circle cx="256" cy="256" r="214" fill="none" stroke="url(#or)" stroke-width="14"/>
+<g id="dt">
+<path d="M73 196 H89 V346 H231 V362 H73Z" fill="url(#or)"/>
+<path fill="url(#wh)" fill-rule="evenodd" d="M89 178 H171 C223 178 249 214 249 262 C249 310 223 346 171 346 H89Z M141 230 H169 C189 230 197 244 197 262 C197 280 189 294 169 294 H141Z"/>
+<path fill="url(#or)" d="M263 178 H423 V230 H369 V346 H317 V230 H263Z"/>
+</g>
 </svg>

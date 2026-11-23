@@ -119,7 +119,7 @@ function renderPecas() {
   const lucro = ps.reduce((s, i) => s + (i.vendidas || 0) * (i.preco - i.custo), 0);
   $('totPecas').innerHTML = `<div>Vendidas na escola<b>${vendidas}</b></div><div>Dinheiro recebido<b>${brl(ganho)}</b></div><div>Lucro de verdade<b>${brl(lucro)}</b></div>`;
   $('listaPecas').innerHTML = ps.length ? ps.map(i => `<li>
-      <div><div class="nm"><span class="dot" style="background:${QUEM[i.who] || 'var(--coral)'}"></span>${esc(i.nome)}</div>
+      <div><div class="nm"><span class="dot" style="background:${QUEM[i.who] || 'var(--brand)'}"></span>${esc(i.nome)}</div>
       <div class="meta">${esc(i.who)} · custo ${brl(i.custo)} · vendidas: ${i.vendidas || 0}</div></div>
       <div class="pr">${brl(i.preco)}</div>
       <div class="acts">
