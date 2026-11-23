@@ -2,7 +2,7 @@
    Identidade da marca: preto com laranja; azul (Davi) e verde (Theo) para quem fez a peça. */
 :root{
   --bg:#f4f4f5;--card:#fff;--ink:#121214;--soft:#5d5d66;--line:#e4e4e8;
-  --head:#0b0b0c;--brand:#ff6a00;--brand-ink:#c24a00;--on-brand:#111;--focus:#2347ff;--erro:#c2410c;--lime:#9bd400;
+  --head:#0b0b0c;--brand:#ff6a00;--brand-light:#ff8a2e;--brand-ink:#c24a00;--on-brand:#111;--tag-alt:#fff;--tag-alt-ink:#111;--tag-alt-soft:#5d5d66;--focus:#2347ff;--erro:#c2410c;--lime:#9bd400;
   --davi:#2347ff;--theo:#0b7a45;
   --c-fil:#1f1f23;--c-ene:#ffe14d;--c-des:#00b3c7;--c-ext:#8a5cff;--c-fal:#7a1f00;--c-luc:#fff;
   --st-agu:#b45f00;--st-pro:#2347ff;--st-ent:#0b7a45;
@@ -51,20 +51,21 @@ input:focus,select:focus,button:focus-visible,a:focus-visible{outline:3px solid 
 .presets button{min-height:48px;border-radius:14px;border:2px solid var(--line);background:transparent;color:var(--ink);font:600 16px Fredoka,sans-serif;cursor:pointer;line-height:1.1}
 .presets button small{display:block;font-weight:400;font-size:13px;color:var(--soft)}
 .presets button[aria-pressed=true]{background:var(--brand);border-color:var(--brand);color:var(--on-brand)}
-.presets button[aria-pressed=true] small{color:#3a1a00}
+.presets button[aria-pressed=true] small{color:var(--on-brand);opacity:.75}
 
-.tag{position:sticky;top:12px;background:linear-gradient(160deg,#ff8a2e,#ff6a00);color:#111;border-radius:22px;padding:26px 22px 22px;box-shadow:0 10px 30px rgba(255,106,0,.35)}
+.tag{position:sticky;top:12px;background:linear-gradient(160deg,var(--brand-light),var(--brand));color:var(--on-brand);border-radius:22px;padding:26px 22px 22px;box-shadow:0 10px 30px rgba(255,106,0,.35)}
 .tag::before{content:"";position:absolute;top:14px;left:50%;width:18px;height:18px;margin-left:-9px;border-radius:50%;background:var(--bg)}
 .tag .lbl{font-size:16px;margin-top:16px}
 .price{font-size:clamp(52px,13vw,84px);font-weight:700;line-height:1;white-space:nowrap;margin:4px 0 6px}
 .piece{font-size:18px;font-weight:500;min-height:27px}
 .minis{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px;margin-top:14px}
-.mini{background:rgba(0,0,0,.1);border-radius:14px;padding:10px 12px}
+.mini{background:var(--card);color:var(--ink);border-radius:14px;padding:10px 12px}
+.mini small{color:var(--soft)}
 .mini b{display:block;font-size:22px;white-space:nowrap}.mini small{font-size:14px}
 .bar{display:flex;height:22px;border-radius:11px;overflow:hidden;margin:18px 0 8px;background:rgba(0,0,0,.2)}
 .bar i{display:block;height:100%;transition:width .35s}
 .legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:14px}
-.legend span::before{content:"";display:inline-block;width:12px;height:12px;border-radius:50%;background:var(--d);margin-right:5px;vertical-align:-1px;border:2px solid #111}
+.legend span::before{content:"";display:inline-block;width:12px;height:12px;border-radius:50%;background:var(--d);margin-right:5px;vertical-align:-1px;border:2px solid var(--on-brand)}
 .legend .luc{font-weight:600}
 
 .btn{min-height:52px;border:0;border-radius:16px;font:600 17px Fredoka,sans-serif;cursor:pointer;padding:0 18px}
@@ -72,9 +73,9 @@ input:focus,select:focus,button:focus-visible,a:focus-visible{outline:3px solid 
 .btn.primary{background:var(--brand);color:var(--on-brand)}
 .btn.ghost{background:transparent;color:var(--ink);border:2px solid var(--line)}
 .btn.wa{background:#1a8d4f;color:#fff}
-.save{width:100%;margin-top:18px;background:#111;color:#ff8a2e}
-.orcar{width:100%;margin-top:10px;background:transparent;border:2px solid #111;color:#111;line-height:1.15;padding:8px 18px}
-.orcar small{display:block;font-weight:400;font-size:13px;margin-top:2px}
+.save{width:100%;margin-top:18px;background:var(--on-brand);color:var(--brand-light)}
+.orcar{width:100%;margin-top:10px;background:var(--tag-alt);color:var(--tag-alt-ink);line-height:1.15;padding:8px 18px}
+.orcar small{display:block;font-weight:400;font-size:13px;margin-top:2px;color:var(--tag-alt-soft)}
 .tools{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
 .tools .btn{flex:1 1 170px}
 .ou{text-align:center;color:var(--soft);margin:10px 0}
