@@ -12,13 +12,14 @@ const STATUS = {
 const $ = id => document.getElementById(id);
 // Campos de dinheiro estilo app de banco: só números, a vírgula se ajusta sozinha (8 → 0,08 → 0,80).
 const fmtMoney = v => (Math.round((+v || 0) * 100) / 100).toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-const brl = v => 'R$ ' + fmtMoney(v);
+const brl = v => 'R$\u00a0' + fmtMoney(v);   // espaço que não quebra: o R$ nunca fica sozinho na linha
 const ehDinheiro = el => el.dataset.money !== undefined;
 // Campo de dinheiro vem como "1.234,56"; campo type=number já vem com ponto decimal ("12.5").
+const lerDinheiro = txt => { const v = parseFloat(String(txt).replace(/\./g, '').replace(',', '.')); return isFinite(v) && v >= 0 ? v : 0; };
 function num(id) {
   const el = $(id);
-  const txt = ehDinheiro(el) ? el.value.replace(/\./g, '').replace(',', '.') : el.value;
-  const v = parseFloat(txt);
+  if (ehDinheiro(el)) return lerDinheiro(el.value);
+  const v = parseFloat(el.value);
   return isFinite(v) && v >= 0 ? v : 0;
 }
 function mascaraDinheiro(i) {
@@ -242,23 +243,40 @@ async function enviarOrcamento(p) {
 
 /* formulário de pedido */
 function opcoesPecas(sel) {
-  return st.pecas.map(p => `<option value="${p.id}"${p.id === sel ? ' selected' : ''}>${esc(p.nome)} — ${brl(p.preco)}</option>`).join('');
+  return st.pecas.map(p => `<option value="${p.id}"${p.id === sel ? ' selected' : ''}>${esc(p.nome)}</option>`).join('');
+}
+// Cada linha do pedido: peça do catálogo, quantidade e preço combinado com ESTE cliente.
+// O preço vem do catálogo, mas pode ser mudado; o catálogo continua como está.
+const pecaDaLinha = div => st.pecas.find(p => p.id === div.querySelector('select').value);
+function infoLinha(div) {
+  const peca = pecaDaLinha(div); if (!peca) return;
+  const preco = lerDinheiro(div.querySelector('.preco').value);
+  const dif = preco - peca.preco;
+  const txt = Math.abs(dif) < 0.005 ? `Preço do catálogo: ${brl(peca.preco)}`
+    : `Catálogo: ${brl(peca.preco)} · combinado ${dif > 0 ? 'acima' : 'abaixo'} (${dif > 0 ? '+' : '−'}\u00a0${brl(Math.abs(dif))})`;
+  div.querySelector('.info').textContent = txt;
 }
 function linhaForm(item = {}) {
   const div = document.createElement('div');
   div.className = 'it';
-  div.innerHTML = `<select aria-label="Peça">${opcoesPecas(item.pecaId)}</select>
-    <input type="number" inputmode="numeric" min="1" step="1" value="${item.qtd || 1}" aria-label="Quantidade">
-    <button type="button" aria-label="Tirar peça">×</button>`;
+  const pecaId = item.pecaId || st.pecas[0]?.id;
+  const preco = item.preco ?? st.pecas.find(p => p.id === pecaId)?.preco ?? 0;
+  div.innerHTML = `<select class="peca" aria-label="Peça">${opcoesPecas(pecaId)}</select>
+    <button type="button" class="tirar" aria-label="Tirar peça">×</button>
+    <div class="unit q"><input class="qtd" type="number" inputmode="numeric" min="1" step="1" value="${item.qtd || 1}" aria-label="Quantidade"><span>un</span></div>
+    <div class="unit v"><input class="preco" type="text" inputmode="numeric" data-money value="${fmtMoney(preco)}" aria-label="Preço combinado de cada uma"><span>R$ cada</span></div>
+    <small class="info"></small>`;
   $('itensForm').appendChild(div);
+  infoLinha(div);
 }
 function itensDoForm() {
   return [...$('itensForm').children].map(div => {
-    const peca = st.pecas.find(p => p.id === div.querySelector('select').value);
-    const qtd = Math.max(1, Math.round(parseFloat(div.querySelector('input').value)) || 1);
-    return peca && { pecaId: peca.id, nome: peca.nome, preco: peca.preco, custo: peca.custo, qtd };
-  }).filter(Boolean).reduce((lista, i) => {   // a mesma peça escolhida duas vezes vira uma linha só
-    const j = lista.find(x => x.pecaId === i.pecaId);
+    const peca = pecaDaLinha(div);
+    const qtd = Math.max(1, Math.round(parseFloat(div.querySelector('.qtd').value)) || 1);
+    const preco = lerDinheiro(div.querySelector('.preco').value);
+    return peca && { pecaId: peca.id, nome: peca.nome, preco, precoCatalogo: peca.preco, custo: peca.custo, qtd };
+  }).filter(Boolean).reduce((lista, i) => {   // mesma peça pelo mesmo preço vira uma linha só
+    const j = lista.find(x => x.pecaId === i.pecaId && Math.abs(x.preco - i.preco) < 0.005);
     if (j) j.qtd += i.qtd; else lista.push(i);
     return lista;
   }, []);
@@ -270,13 +288,18 @@ function atualizarTotalForm() {
   $('formSubtotal').textContent = desc > 0 ? `Subtotal ${brl(subtotalPedido(p))} − desconto ${brl(desc)}` : '';
   $('formTotal').textContent = brl(totalPedido(p));
   $('formSinal').textContent = 'Metade para começar: ' + brl(sinalPedido(p));
-  // aviso de lucro só aparece quando há desconto: é aí que dá para errar
+  // o aviso aparece quando o preço foi negociado (desconto ou preço diferente do catálogo)
   const av = $('formLucro');
-  if (!(p.desconto > 0)) { av.textContent = ''; av.className = 'aviso'; return; }
+  const mudou = p.itens.filter(i => Math.abs(i.preco - i.precoCatalogo) >= 0.005);
+  if (!(p.desconto > 0) && !mudou.length) { av.textContent = ''; av.className = 'aviso'; return; }
   if (p.desconto > subtotalPedido(p)) { av.textContent = 'O desconto é maior que o valor do pedido.'; av.className = 'aviso neg'; return; }
-  const [classe, texto] = lucro > 0.004 ? ['ok', `Com esse desconto vocês ainda ganham ${brl(lucro)}.`]
-    : lucro > -0.005 ? ['zero', 'Cuidado: assim vocês só pagam o custo, sem lucro nenhum.']
-    : ['neg', `Com esse desconto vocês PERDEM ${brl(-lucro)}!`];
+  const abaixoCusto = p.itens.find(i => i.preco < i.custo - 0.004);
+  const subiu = !(p.desconto > 0) && mudou.every(i => i.preco > i.precoCatalogo);
+  const [classe, texto] = lucro < -0.004 ? ['neg', `Com esse preço vocês PERDEM ${brl(-lucro)}!`]
+    : abaixoCusto ? ['neg', `“${abaixoCusto.nome}” por ${brl(abaixoCusto.preco)} sai mais barato que o custo (${brl(abaixoCusto.custo)}).`]
+    : lucro < 0.005 ? ['zero', 'Cuidado: assim vocês só pagam o custo, sem lucro nenhum.']
+    : subiu ? ['ok', `Boa negociação! Vocês ganham ${brl(lucro)} neste pedido.`]
+    : ['ok', `Com esse preço vocês ainda ganham ${brl(lucro)}.`];
   av.textContent = texto; av.className = 'aviso ' + classe;
 }
 function abrirForm(pedido, pecaId) {
@@ -288,7 +311,7 @@ function abrirForm(pedido, pecaId) {
   $('prazo').value = pedido ? pedido.prazo : cfg('prazoPadrao');
   $('desconto').value = fmtMoney(pedido ? pedido.desconto || 0 : 0);
   $('itensForm').innerHTML = '';
-  (pedido ? pedido.itens : [{ pecaId: pecaId || st.pecas[0].id, qtd: 1 }]).forEach(linhaForm);
+  (pedido ? pedido.itens : [{ pecaId: pecaId || st.pecas[0].id, qtd: 1 }]).forEach(i => linhaForm(i));
   $('formErro').textContent = '';
   $('formPedido').hidden = false;
   atualizarTotalForm();
@@ -402,12 +425,20 @@ function ligarEventos() {
 
   $('novoPedido').addEventListener('click', () => abrirForm());
   $('cancelarPedido').addEventListener('click', fecharForm);
-  $('addItem').addEventListener('click', () => { linhaForm(); atualizarTotalForm(); });
-  $('itensForm').addEventListener('input', atualizarTotalForm);
+  $('addItem').addEventListener('click', () => { linhaForm(); atualizarTotalForm(); });  // nova linha com a 1ª peça e seu preço
+  $('itensForm').addEventListener('input', e => {
+    const linha = e.target.closest('.it');
+    if (e.target.classList.contains('preco')) mascaraDinheiro(e.target);
+    if (e.target.classList.contains('peca')) {   // trocou a peça: o preço volta para o do catálogo
+      const peca = pecaDaLinha(linha); if (peca) linha.querySelector('.preco').value = fmtMoney(peca.preco);
+    }
+    if (linha) infoLinha(linha);
+    atualizarTotalForm();
+  });
   $('desconto').addEventListener('input', atualizarTotalForm);
   $('itensForm').addEventListener('click', e => {
-    const b = e.target.closest('button'); if (!b) return;
-    if ($('itensForm').children.length > 1) { b.parentElement.remove(); atualizarTotalForm(); }
+    const b = e.target.closest('button.tirar'); if (!b) return;
+    if ($('itensForm').children.length > 1) { b.closest('.it').remove(); atualizarTotalForm(); }
   });
   $('formPedido').addEventListener('submit', async e => {
     e.preventDefault();
@@ -423,7 +454,7 @@ function ligarEventos() {
       cliente, fone: $('fone').value.trim(), prazo: Math.round(num('prazo')), itens, desconto,
     };
     const lucro = lucroPedido(pedido);
-    if (lucro < -0.004 && !await perguntar(`Com esse desconto vocês PERDEM ${brl(-lucro)}. Salvar mesmo assim?`, 'Salvar assim', 'Voltar')) return;
+    if (lucro < -0.004 && !await perguntar(`Com esse preço vocês PERDEM ${brl(-lucro)}. Salvar mesmo assim?`, 'Salvar assim', 'Voltar')) return;
     store.savePedido(pedido);
     fecharForm();
     if (await perguntar(`Pedido ${antigo ? 'atualizado' : 'salvo'}! Mandar o preço para ${cliente} agora pelo WhatsApp?`, 'Mandar agora', 'Depois')) enviarOrcamento(pedido);
