@@ -156,7 +156,12 @@ function renderPecas() {
 }
 
 /* ---------- pedidos ---------- */
-const totalPedido = p => p.itens.reduce((s, i) => s + i.qtd * i.preco, 0);
+// Valores do pedido: o desconto sai do subtotal; a metade e o lucro já consideram o desconto.
+const subtotalPedido = p => p.itens.reduce((s, i) => s + i.qtd * i.preco, 0);
+const descontoPedido = p => Math.min(p.desconto || 0, subtotalPedido(p));
+const totalPedido = p => subtotalPedido(p) - descontoPedido(p);
+const custoPedido = p => p.itens.reduce((s, i) => s + i.qtd * (i.custo || 0), 0);
+const lucroPedido = p => totalPedido(p) - custoPedido(p);
 const sinalPedido = p => Math.round(totalPedido(p) * 50) / 100;
 
 function linhaItem(i) {
@@ -170,6 +175,7 @@ function msgOrcamento(p) {
     '*DT 3D STUDIO* — Orçamento',
     `Cliente: ${p.cliente}`, '',
     ...p.itens.map(linhaItem), '',
+    ...(descontoPedido(p) > 0 ? [`Subtotal: ${brl(subtotalPedido(p))}`, `Desconto: − ${brl(descontoPedido(p))}`] : []),
     `*Total: ${brl(total)}*`,
     `Prazo de entrega: ${p.prazo} ${p.prazo === 1 ? 'dia' : 'dias'} após o sinal`,
     `Orçamento válido até ${dataBR(p.criada + cfg('validade') * DIA)}`, '',
@@ -197,7 +203,8 @@ function renderPedidos() {
   const recebido = ps.reduce((s, p) => s + (p.status === 'entregue' ? totalPedido(p) : p.status === 'producao' ? sinalPedido(p) : 0), 0);
   const aReceber = ps.filter(p => p.status === 'producao').reduce((s, p) => s + totalPedido(p) - sinalPedido(p), 0);
   const emProd = ps.filter(p => p.status === 'producao').length;
-  $('totPedidos').innerHTML = `<div>Para imprimir<b>${emProd}</b></div><div>Já recebido<b>${brl(recebido)}</b></div><div>A receber na entrega<b>${brl(aReceber)}</b></div>`;
+  const lucro = ps.filter(p => p.status === 'entregue').reduce((s, p) => s + lucroPedido(p), 0);
+  $('totPedidos').innerHTML = `<div>Para imprimir<b>${emProd}</b></div><div>Já recebido<b>${brl(recebido)}</b></div><div>A receber na entrega<b>${brl(aReceber)}</b></div><div>Lucro dos entregues<b>${brl(lucro)}</b></div>`;
   $('listaPedidos').innerHTML = ps.length ? ps.map(p => {
     const s = STATUS[p.status] || STATUS.aguardando;
     const total = totalPedido(p), sinal = sinalPedido(p);
@@ -219,6 +226,7 @@ function renderPedidos() {
       <div class="ph"><div><div class="nm">${esc(p.cliente)}</div><div class="meta">Pedido de ${dataBR(p.criada)}</div></div>
       <span class="st" style="--s:${s.cor}">${s.nome}</span></div>
       <ul class="pl">${p.itens.map(i => `<li><span>${i.qtd}x ${esc(i.nome)}</span><span>${brl(i.qtd * i.preco)}</span></li>`).join('')}
+      ${descontoPedido(p) > 0 ? `<li class="desc"><span>Desconto</span><span>− ${brl(descontoPedido(p))}</span></li>` : ''}
       <li><b>Total</b><b>${brl(total)}</b></li></ul>
       <div class="pv">${info}</div>
       <div class="acts">${bts}
@@ -255,10 +263,21 @@ function itensDoForm() {
     return lista;
   }, []);
 }
+const pedidoDoForm = () => ({ itens: itensDoForm(), desconto: num('desconto') });
 function atualizarTotalForm() {
-  const p = { itens: itensDoForm() };
+  const p = pedidoDoForm();
+  const desc = descontoPedido(p), lucro = lucroPedido(p);
+  $('formSubtotal').textContent = desc > 0 ? `Subtotal ${brl(subtotalPedido(p))} − desconto ${brl(desc)}` : '';
   $('formTotal').textContent = brl(totalPedido(p));
   $('formSinal').textContent = 'Metade para começar: ' + brl(sinalPedido(p));
+  // aviso de lucro só aparece quando há desconto: é aí que dá para errar
+  const av = $('formLucro');
+  if (!(p.desconto > 0)) { av.textContent = ''; av.className = 'aviso'; return; }
+  if (p.desconto > subtotalPedido(p)) { av.textContent = 'O desconto é maior que o valor do pedido.'; av.className = 'aviso neg'; return; }
+  const [classe, texto] = lucro > 0.004 ? ['ok', `Com esse desconto vocês ainda ganham ${brl(lucro)}.`]
+    : lucro > -0.005 ? ['zero', 'Cuidado: assim vocês só pagam o custo, sem lucro nenhum.']
+    : ['neg', `Com esse desconto vocês PERDEM ${brl(-lucro)}!`];
+  av.textContent = texto; av.className = 'aviso ' + classe;
 }
 function abrirForm(pedido, pecaId) {
   if (!st.pecas.length) { toast('Primeiro salve uma peça no catálogo'); location.hash = 'calcular'; return; }
@@ -267,6 +286,7 @@ function abrirForm(pedido, pecaId) {
   $('cliente').value = pedido ? pedido.cliente : '';
   $('fone').value = pedido ? (pedido.fone || '') : '';
   $('prazo').value = pedido ? pedido.prazo : cfg('prazoPadrao');
+  $('desconto').value = fmtMoney(pedido ? pedido.desconto || 0 : 0);
   $('itensForm').innerHTML = '';
   (pedido ? pedido.itens : [{ pecaId: pecaId || st.pecas[0].id, qtd: 1 }]).forEach(linhaForm);
   $('formErro').textContent = '';
@@ -384,6 +404,7 @@ function ligarEventos() {
   $('cancelarPedido').addEventListener('click', fecharForm);
   $('addItem').addEventListener('click', () => { linhaForm(); atualizarTotalForm(); });
   $('itensForm').addEventListener('input', atualizarTotalForm);
+  $('desconto').addEventListener('input', atualizarTotalForm);
   $('itensForm').addEventListener('click', e => {
     const b = e.target.closest('button'); if (!b) return;
     if ($('itensForm').children.length > 1) { b.parentElement.remove(); atualizarTotalForm(); }
@@ -394,11 +415,15 @@ function ligarEventos() {
     const itens = itensDoForm();
     if (!cliente) { $('formErro').textContent = 'Coloque o nome do cliente.'; $('cliente').focus(); return; }
     if (!itens.length) { $('formErro').textContent = 'Escolha pelo menos uma peça.'; return; }
+    const desconto = num('desconto');
+    if (desconto > subtotalPedido({ itens })) { $('formErro').textContent = 'O desconto é maior que o valor do pedido.'; $('desconto').focus(); return; }
     const antigo = st.pedidos.find(p => p.id === editando);
     const pedido = {
       ...(antigo || { id: uid(), status: 'aguardando', criada: Date.now() }),
-      cliente, fone: $('fone').value.trim(), prazo: Math.round(num('prazo')), itens,
+      cliente, fone: $('fone').value.trim(), prazo: Math.round(num('prazo')), itens, desconto,
     };
+    const lucro = lucroPedido(pedido);
+    if (lucro < -0.004 && !await perguntar(`Com esse desconto vocês PERDEM ${brl(-lucro)}. Salvar mesmo assim?`, 'Salvar assim', 'Voltar')) return;
     store.savePedido(pedido);
     fecharForm();
     if (await perguntar(`Pedido ${antigo ? 'atualizado' : 'salvo'}! Mandar o preço para ${cliente} agora pelo WhatsApp?`, 'Mandar agora', 'Depois')) enviarOrcamento(pedido);

@@ -148,9 +148,11 @@
         <div id="itensForm"></div>
         <button class="btn ghost small" id="addItem" type="button">Adicionar peça</button>
         <div class="row">
+          <div><label for="desconto">Desconto <span class="hint">em reais, se combinaram um preço menor</span></label><div class="unit"><input id="desconto" type="text" inputmode="numeric" data-money value="0,00"><span>R$</span></div></div>
           <div><label for="prazo">Prazo de entrega</label><div class="unit"><input id="prazo" type="number" inputmode="numeric" min="0" step="1" value="3"><span>dias</span></div></div>
-          <div class="sum"><small>Total</small><b id="formTotal">R$ 0,00</b><small id="formSinal">Metade para começar: R$ 0,00</small></div>
         </div>
+        <div class="sum"><small id="formSubtotal"></small><small>Total</small><b id="formTotal">R$ 0,00</b><small id="formSinal">Metade para começar: R$ 0,00</small></div>
+        <p class="aviso" id="formLucro" role="status"></p>
         <p class="erro" id="formErro" role="alert"></p>
         <div class="tools">
           <button class="btn primary" type="submit">Salvar pedido</button>
