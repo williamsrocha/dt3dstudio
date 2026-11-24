@@ -41,10 +41,11 @@ h3{font-size:18px;margin:20px 0 4px;font-weight:600}
 
 label{display:block;font-weight:500;margin:12px 0 4px}
 .hint{display:block;font-size:13px;color:var(--soft);font-weight:400}
+.hint strong{color:var(--ink);font-weight:600}
 h2 .hint{display:inline;margin-left:6px}
 input,select{width:100%;min-height:48px;font:500 17px Fredoka,sans-serif;padding:8px 12px;border-radius:12px;border:2px solid var(--line);background:var(--bg);color:var(--ink)}
 input:focus,select:focus,button:focus-visible,a:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
-.row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}
+.row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px;align-items:end}
 .unit{position:relative}.unit span{position:absolute;right:12px;top:50%;transform:translateY(-50%);color:var(--soft);font-size:15px;pointer-events:none}
 .unit input{padding-right:58px}
 
