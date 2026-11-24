@@ -61,6 +61,20 @@ async function copiar(texto, ok) {
   catch { toast('Não deu para copiar neste aparelho'); }
 }
 
+// Telefone do cliente: só os números (DDD + número), formatado como (19) 99999-9999.
+function digitosFone(txt) {
+  let d = String(txt || '').replace(/\D/g, '');
+  if (d.length > 11 && d.startsWith('55')) d = d.slice(2);   // colou com +55
+  return d.slice(0, 11);
+}
+function formatarFone(txt) {
+  const d = digitosFone(txt);
+  if (d.length <= 2) return d ? `(${d}` : '';
+  const meio = d.length === 11 ? 7 : 6;
+  return `(${d.slice(0, 2)}) ${d.slice(2, meio)}${d.length > meio ? '-' + d.slice(meio) : ''}`;
+}
+const foneValido = txt => /^[1-9][0-9](9?\d{8})$/.test(digitosFone(txt)) && [10, 11].includes(digitosFone(txt).length);
+
 function abrirWhatsApp(texto, fone) {
   let n = String(fone || '').replace(/\D/g, '');
   if (n.length === 10 || n.length === 11) n = '55' + n;
@@ -332,7 +346,7 @@ function abrirForm(pedido, pecaId) {
   editando = pedido ? pedido.id : null;
   $('formTitulo').textContent = pedido ? 'Editar pedido' : 'Novo pedido';
   $('cliente').value = pedido ? pedido.cliente : '';
-  $('fone').value = pedido ? (pedido.fone || '') : '';
+  $('fone').value = pedido ? formatarFone(pedido.fone) : '';
   $('prazo').value = pedido ? pedido.prazo : cfg('prazoPadrao');
   $('desconto').value = fmtMoney(pedido ? pedido.desconto || 0 : 0);
   $('itensForm').innerHTML = '';
@@ -476,6 +490,7 @@ function ligarEventos() {
     atualizarTotalForm();
   });
   $('desconto').addEventListener('input', atualizarTotalForm);
+  $('fone').addEventListener('input', () => { const el = $('fone'); el.value = formatarFone(el.value); });
   $('itensForm').addEventListener('click', e => {
     const b = e.target.closest('button.tirar'); if (!b) return;
     if ($('itensForm').children.length > 1) { b.closest('.it').remove(); atualizarTotalForm(); }
@@ -485,13 +500,15 @@ function ligarEventos() {
     const cliente = $('cliente').value.trim();
     const itens = itensDoForm();
     if (!cliente) { $('formErro').textContent = 'Coloque o nome do cliente.'; $('cliente').focus(); return; }
+    if (!digitosFone($('fone').value)) { $('formErro').textContent = 'Coloque o WhatsApp do cliente, com DDD.'; $('fone').focus(); return; }
+    if (!foneValido($('fone').value)) { $('formErro').textContent = 'O WhatsApp precisa ter DDD + número, ex.: (19) 99999-9999.'; $('fone').focus(); return; }
     if (!itens.length) { $('formErro').textContent = 'Escolha pelo menos uma peça.'; return; }
     const desconto = num('desconto');
     if (desconto > subtotalPedido({ itens })) { $('formErro').textContent = 'O desconto é maior que o valor do pedido.'; $('desconto').focus(); return; }
     const antigo = st.pedidos.find(p => p.id === editando);
     const pedido = {
       ...(antigo || { id: uid(), status: 'aguardando', criada: Date.now() }),
-      cliente, fone: $('fone').value.trim(), prazo: Math.round(num('prazo')), itens, desconto,
+      cliente, fone: formatarFone($('fone').value), prazo: Math.round(num('prazo')), itens, desconto,
     };
     const lucro = lucroPedido(pedido);
     if (lucro < -0.004 && !await perguntar(`Com esse preço vocês PERDEM ${brl(-lucro)}. Salvar mesmo assim?`, 'Salvar assim', 'Voltar')) return;
