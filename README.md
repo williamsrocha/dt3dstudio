@@ -3,6 +3,8 @@
 Calculadora de preços e orçamentos da **DT 3D STUDIO**, para peças impressas em 3D.
 Instagram: [@dt3dstudio](https://instagram.com/dt3dstudio)
 
+📘 **Documentação completa do projeto** (o que o app faz, estrutura, decisões, histórico e pendências): [`docs/PROJETO.md`](docs/PROJETO.md)
+
 ## O que o app faz
 
 - **Calcular**: preço sugerido por peça a partir do peso do filamento, tempo de impressão, extras e lucro desejado.
