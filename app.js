@@ -111,6 +111,14 @@ function calcular() {
   return { fil, ene, des, ext, falha, custo, preco, lucro };
 }
 
+// Volta a calculadora para o começo (usada ao abrir o app e no botão Limpar).
+// Não mexe no catálogo, nos pedidos nem nos Ajustes.
+function limparCalculadora() {
+  $('nome').value = ''; $('peso').value = ''; $('qtd').value = 1;
+  $('horas').value = ''; $('minutos').value = ''; $('extras').value = '0,00';
+  mostrarCalculo();
+}
+
 function mostrarCalculo() {
   const r = calcular();
   const nm = $('nome').value.trim();
@@ -325,12 +333,7 @@ function ligarEventos() {
   });
   document.querySelectorAll('#v-calcular input').forEach(i => i.addEventListener('input', () => { mostrarCalculo(); if (i.dataset.cfg !== undefined) salvarConfig(); }));
   cfgInputs.forEach(i => { if (!i.closest('#v-calcular')) i.addEventListener('input', () => { mostrarCalculo(); salvarConfig(); }); });
-  $('limpar').addEventListener('click', () => {
-    // volta a calculadora para o começo; não mexe no catálogo, nos pedidos nem nos Ajustes
-    $('nome').value = ''; $('peso').value = ''; $('qtd').value = 1;
-    $('horas').value = ''; $('minutos').value = ''; $('extras').value = '0,00';
-    mostrarCalculo(); window.scrollTo(0, 0); toast('Campos limpos');
-  });
+  $('limpar').addEventListener('click', () => { limparCalculadora(); window.scrollTo(0, 0); toast('Campos limpos'); });
   $('home').addEventListener('click', e => {
     if (location.hash === '#calcular' || !location.hash) { e.preventDefault(); rota(); }
   });
@@ -495,6 +498,7 @@ function telaLogin() {
 
 ligarEventos();
 setWho(who);
+limparCalculadora(); // sempre abre limpo, mesmo se o navegador tentar restaurar o que foi digitado antes
 const codigo = local.get('p3d-codigo', null);
 if (cloudEnabled && !codigo) telaLogin();
 else iniciar(cloudEnabled ? codigo : null);
