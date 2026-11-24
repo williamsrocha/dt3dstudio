@@ -144,7 +144,9 @@ function renderPecas() {
   const lucro = ps.reduce((s, i) => s + (i.vendidas || 0) * (i.preco - i.custo), 0);
   $('totPecas').innerHTML = `<div>Vendidas na escola<b>${vendidas}</b></div><div>Dinheiro recebido<b>${brl(ganho)}</b></div><div>Lucro de verdade<b>${brl(lucro)}</b></div>`;
   $('listaPecas').innerHTML = ps.length ? ps.map(i => `<li>
-      <div><div class="nm"><span class="dot" style="background:${QUEM[i.who] || 'var(--brand)'}"></span>${esc(i.nome)}</div>
+      <button class="foto" data-a="foto" data-id="${i.id}" style="--c:${QUEM[i.who] || 'var(--brand)'}"
+        aria-label="${i.foto ? 'Ver foto de' : 'Colocar foto em'} ${esc(i.nome)}">${i.foto ? `<img src="${i.foto}" alt="">` : ico('camera')}</button>
+      <div><div class="nm">${esc(i.nome)}</div>
       <div class="meta">${esc(i.who)} · custo ${brl(i.custo)} · vendidas: ${i.vendidas || 0}</div></div>
       <div class="pr">${brl(i.preco)}</div>
       <div class="acts">
@@ -154,6 +156,29 @@ function renderPecas() {
         <button data-a="apagar" data-id="${i.id}">${ico('lixeira')}Apagar</button>
       </div></li>`).join('')
     : '<li class="empty">Nenhuma peça no catálogo ainda. Calcule o preço e toque em “Salvar no catálogo”.</li>';
+}
+
+/* ---------- fotos das peças ---------- */
+// A foto é reduzida para um quadrado pequeno (vitrine) e guardada junto com a peça,
+// para caber no plano gratuito do Firebase sem precisar do Storage (que é pago).
+const FOTO_LADO = 320;
+const fotoDaPeca = id => st.pecas.find(p => p.id === id)?.foto || '';
+async function reduzirFoto(arquivo) {
+  const img = await createImageBitmap(arquivo, { imageOrientation: 'from-image' });
+  const lado = Math.min(img.width, img.height);
+  const c = document.createElement('canvas'); c.width = c.height = FOTO_LADO;
+  c.getContext('2d').drawImage(img, (img.width - lado) / 2, (img.height - lado) / 2, lado, lado, 0, 0, FOTO_LADO, FOTO_LADO);
+  img.close?.();
+  let q = 0.75, url = c.toDataURL('image/jpeg', q);
+  while (url.length > 45000 && q > 0.4) { q -= 0.1; url = c.toDataURL('image/jpeg', q); }  // ~30 KB no máximo
+  return url;
+}
+let fotoPecaId = null;
+function escolherFoto(id) { fotoPecaId = id; $('fotoInput').value = ''; $('fotoInput').click(); }
+function verFoto(p) {
+  fotoPecaId = p.id;
+  $('fotoGrande').src = p.foto; $('fotoGrande').alt = 'Foto de ' + p.nome; $('fotoNome').textContent = p.nome;
+  $('dlgFoto').showModal();
 }
 
 /* ---------- pedidos ---------- */
@@ -226,7 +251,7 @@ function renderPedidos() {
     return `<li>
       <div class="ph"><div><div class="nm">${esc(p.cliente)}</div><div class="meta">Pedido de ${dataBR(p.criada)}</div></div>
       <span class="st" style="--s:${s.cor}">${s.nome}</span></div>
-      <ul class="pl">${p.itens.map(i => `<li><span>${i.qtd}x ${esc(i.nome)}</span><span>${brl(i.qtd * i.preco)}</span></li>`).join('')}
+      <ul class="pl">${p.itens.map(i => { const f = fotoDaPeca(i.pecaId); return `<li><span>${f ? `<img class="mf" src="${f}" alt="">` : ''}${i.qtd}x ${esc(i.nome)}</span><span>${brl(i.qtd * i.preco)}</span></li>`; }).join('')}
       ${descontoPedido(p) > 0 ? `<li class="desc"><span>Desconto</span><span>− ${brl(descontoPedido(p))}</span></li>` : ''}
       <li><b>Total</b><b>${brl(total)}</b></li></ul>
       <div class="pv">${info}</div>
@@ -407,10 +432,25 @@ function ligarEventos() {
     const b = e.target.closest('button[data-a]'); if (!b) return;
     const p = st.pecas.find(x => x.id === b.dataset.id); if (!p) return;
     const a = b.dataset.a;
+    if (a === 'foto') { if (p.foto) verFoto(p); else escolherFoto(p.id); }
     if (a === 'vendi') { store.contarVenda(p.id, 1); toast('Mais uma venda!'); }
     if (a === 'desfazer' && p.vendidas > 0) store.contarVenda(p.id, -1);
     if (a === 'orcar') { location.hash = 'pedidos'; abrirForm(null, p.id); }
     if (a === 'apagar' && await perguntar(`Apagar “${p.nome}” do catálogo?`, 'Apagar', 'Cancelar')) store.deletePeca(p.id);
+  });
+
+  $('fotoInput').addEventListener('change', async () => {
+    const arq = $('fotoInput').files[0]; const p = st.pecas.find(x => x.id === fotoPecaId);
+    if (!arq || !p) return;
+    try { store.savePeca({ ...p, foto: await reduzirFoto(arq) }); toast('Foto salva!'); }
+    catch { toast('Não consegui abrir essa foto. Tente outra.'); }
+  });
+  $('fotoTrocar').addEventListener('click', () => { $('dlgFoto').close(); escolherFoto(fotoPecaId); });
+  $('fotoFechar').addEventListener('click', () => $('dlgFoto').close());
+  $('fotoRemover').addEventListener('click', async () => {
+    $('dlgFoto').close();
+    const p = st.pecas.find(x => x.id === fotoPecaId);
+    if (p && await perguntar(`Remover a foto de “${p.nome}”?`, 'Remover', 'Cancelar')) { const { foto, ...sem } = p; store.savePeca(sem); }
   });
 
   $('copiarCatalogo').addEventListener('click', () => {
