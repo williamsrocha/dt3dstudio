@@ -1,0 +1,18 @@
+# Arquivos que nunca devem ir para o GitHub (o repositório é público).
+
+# Variáveis de ambiente e segredos (o app não usa, mas fica a proteção)
+.env
+.env.*
+
+# Cache do Python (gerado ao rodar os testes)
+__pycache__/
+*.pyc
+
+# Arquivos do sistema e de editores
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+*.swp
+*~

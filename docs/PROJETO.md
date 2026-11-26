@@ -68,6 +68,7 @@ App de cálculo de preços, catálogo e pedidos da **DT 3D STUDIO**, uma pequena
 | `store.js` | Dados: modo local (`localStorage`) ou nuvem (Firestore) |
 | `firebase-config.js` | Configuração pública do Firebase (não é senha) |
 | `firestore.rules` | Regras de segurança do banco |
+| `.gitignore` | Impede que segredos (`.env`), cache do Python e arquivos do sistema vão para o GitHub |
 | `manifest.webmanifest`, `sw.js`, `icons/` | App instalável, offline e atualização automática |
 
 **Dados no Firestore:** `familias/{codigo}` guarda a configuração; as subcoleções `pecas` e `pedidos` guardam o resto. As regras só aceitam códigos no formato `DT-XXXX-XXXX-XXXX`, não permitem listar códigos e não permitem apagar uma família inteira.
@@ -93,6 +94,7 @@ Na pasta `tests/` (instruções no começo de cada arquivo):
 - **As peças são da loja; o que importa é quem vendeu.** Cada celular marca o seu vendedor.
 - Textos **simples para as crianças** no app; mensagens ao cliente com termos formais (orçamento, sinal de 50%).
 - **Chave Pix aleatória**, nunca CPF: o código é público e as mensagens podem ser encaminhadas.
+- **Sem arquivo `.env`**: o app é um site estático sem build, então nada leria esse arquivo, e tudo o que vai para o navegador fica visível de qualquer jeito. A proteção real é feita pelas regras do Firestore e pela restrição da chave do Firebase ao domínio do site.
 - O app usa só a marca DT; nenhum personagem ou logo de terceiros.
 - Fotos guardadas na própria peça, **sem Firebase Storage** (que exige plano pago).
 - **Cada pedido é uma negociação**: o preço combinado vale só para aquele cliente; o catálogo é a tabela.
@@ -120,6 +122,7 @@ Na pasta `tests/` (instruções no começo de cada arquivo):
 | 26/11/2026 | Olho no Catálogo: custo e lucro escondidos do cliente por padrão; testes atualizados (30 verificações) |
 | 26/11/2026 | Pagamento total no pedido (**Cliente pagou tudo** e **Cliente pagou o resto**), totais e mensagem de confirmação corrigidos; testes: 41 verificações |
 | 26/11/2026 | **Quem vendeu** no lugar de "quem fez": seletor no topo, vendedor em cada venda e pedido, totais por vendedor; peças passam a ser da loja; testes: 47 verificações |
+| 26/11/2026 | `.gitignore` criado (`.env`, cache do Python, arquivos do sistema); cache do Python que estava no repositório foi removido |
 
 ## Pendências e ideias
 
@@ -131,3 +134,4 @@ Na pasta `tests/` (instruções no começo de cada arquivo):
 - [ ] Vídeo: versão narrada pelo Davi ou versão curta de 30 s para Reels.
 - [ ] Refazer o vídeo quando entrarem funções novas.
 - [ ] Reforçar as regras do Firestore validando os campos gravados (tipos e tamanhos), como segunda camada de segurança.
+- [ ] Restringir a chave do Firebase (`apiKey`) no Google Cloud para funcionar só em `williamsrocha.github.io`.
