@@ -106,6 +106,7 @@ Na pasta `tests/` (instruções no começo de cada arquivo):
 | 26/11/2026 | Lápis na etiqueta para escolher o preço da peça antes de salvar no catálogo |
 | 26/11/2026 | **Vendi várias** (quantidade e preço por venda), valores reais recebidos e desfazer a última venda inteira |
 | 26/11/2026 | Revisão de código: proteção contra dados maliciosos da nuvem (10 brechas fechadas), regra única de lucro/prejuízo, telefone com uma regra só, CSS sem regra duplicada; testes em `tests/` |
+| 26/11/2026 | Vídeo de apresentação **v2** (vertical, 1 min 29 s, trilha original): lápis do preço, fotos, Vendi várias, preço combinado, WhatsApp obrigatório |
 
 ## Pendências e ideias
 
@@ -113,5 +114,7 @@ Na pasta `tests/` (instruções no começo de cada arquivo):
 - [x] ~~Avaliar **Vendi mais barato**~~: resolvido pelo **Vendi várias** (26/11/2026).
 - [ ] Avaliar **Modo treino** (testes separados dos dados reais).
 - [ ] Gerar **imagem do catálogo** com fotos e preços para Instagram e WhatsApp.
-- [ ] Vídeo de apresentação: versão narrada pelo Davi ou versão curta de 30 s.
+- [x] ~~Atualizar o vídeo de apresentação~~: feita a v2 em 26/11/2026.
+- [ ] Vídeo: versão narrada pelo Davi ou versão curta de 30 s para Reels.
+- [ ] Refazer o vídeo quando entrarem funções novas.
 - [ ] Reforçar as regras do Firestore validando os campos gravados (tipos e tamanhos), como segunda camada de segurança.
