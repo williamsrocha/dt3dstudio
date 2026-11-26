@@ -273,6 +273,10 @@ const totalPedido = p => subtotalPedido(p) - descontoPedido(p);
 const custoPedido = p => p.itens.reduce((s, i) => s + n(i.qtd) * n(i.custo), 0);
 const lucroPedido = p => totalPedido(p) - custoPedido(p);
 const sinalPedido = p => Math.round(totalPedido(p) * 50) / 100;
+// Pagamento: em produção o cliente pagou a metade (padrão) ou tudo; entregue = tudo pago.
+const pagouTudo = p => p.status === 'entregue' || (p.status === 'producao' && p.pago === 'total');
+const pagoPedido = p => p.status === 'aguardando' ? 0 : pagouTudo(p) ? totalPedido(p) : sinalPedido(p);
+const faltaPedido = p => p.status === 'producao' ? totalPedido(p) - pagoPedido(p) : 0;
 
 function linhaItem(i) {
   return i.qtd > 1 ? `• ${i.qtd}x ${i.nome} — ${brl(i.preco)} cada = ${brl(i.qtd * i.preco)}` : `• 1x ${i.nome} — ${brl(i.preco)}`;
@@ -296,13 +300,13 @@ function msgOrcamento(p) {
 }
 
 function msgConfirmacao(p) {
-  const sinal = sinalPedido(p), resto = totalPedido(p) - sinal;
+  const tudo = pagouTudo(p);
   return [
     '*DT 3D STUDIO* — Pedido confirmado! ✅',
-    `Oi, ${p.cliente}! Recebemos seu sinal de ${brl(sinal)}.`,
+    tudo ? `Oi, ${p.cliente}! Recebemos o pagamento total de ${brl(totalPedido(p))}.` : `Oi, ${p.cliente}! Recebemos seu sinal de ${brl(sinalPedido(p))}.`,
     'Já vamos começar a imprimir suas peças.',
     `Previsão de entrega: ${dataBR(p.sinalEm + p.prazo * DIA)}`,
-    `Restante a pagar na entrega: ${brl(resto)}`,
+    tudo ? 'Nada a pagar na entrega!' : `Restante a pagar na entrega: ${brl(faltaPedido(p))}`,
     'Obrigado pela confiança!',
     INSTAGRAM,
   ].join('\n');
@@ -310,8 +314,8 @@ function msgConfirmacao(p) {
 
 function renderPedidos() {
   const ps = st.pedidos;
-  const recebido = ps.reduce((s, p) => s + (p.status === 'entregue' ? totalPedido(p) : p.status === 'producao' ? sinalPedido(p) : 0), 0);
-  const aReceber = ps.filter(p => p.status === 'producao').reduce((s, p) => s + totalPedido(p) - sinalPedido(p), 0);
+  const recebido = ps.reduce((s, p) => s + pagoPedido(p), 0);
+  const aReceber = ps.reduce((s, p) => s + faltaPedido(p), 0);
   const emProd = ps.filter(p => p.status === 'producao').length;
   const lucro = ps.filter(p => p.status === 'entregue').reduce((s, p) => s + lucroPedido(p), 0);
   $('totPedidos').innerHTML = `<div>Para imprimir<b>${emProd}</b></div><div>Já recebido<b>${brl(recebido)}</b></div><div>A receber na entrega<b>${brl(aReceber)}</b></div><div>Lucro dos entregues<b>${brl(lucro)}</b></div>`;
@@ -321,20 +325,22 @@ function renderPedidos() {
     const info = p.status === 'aguardando'
       ? `<span>Metade: <b>${brl(sinal)}</b></span><span>Preço vale até <b>${dataBR(p.criada + cfg('validade') * DIA)}</b></span>`
       : p.status === 'producao'
-        ? `<span>Metade paga: <b>${brl(sinal)}</b></span><span>Falta: <b>${brl(total - sinal)}</b></span><span>Entrega: <b>${dataBR(p.sinalEm + p.prazo * DIA)}</b></span>`
+        ? `<span>${pagouTudo(p) ? 'Pago' : 'Metade paga'}: <b>${brl(pagoPedido(p))}</b></span><span>Falta: <b>${brl(faltaPedido(p))}</b></span><span>Entrega: <b>${dataBR(p.sinalEm + p.prazo * DIA)}</b></span>`
         : `<span>Pago: <b>${brl(total)}</b></span><span>Entregue em <b>${dataBR(p.entregueEm)}</b></span>`;
     const bts = {
       aguardando: `<button class="wa" data-a="msgOrc" data-id="${id}">${ico('aviao')}Mandar preço no WhatsApp</button>
         <button class="go" data-a="sinal" data-id="${id}">${ico('metade')}Cliente pagou a metade</button>
+        <button class="go" data-a="tudo" data-id="${id}">${ico('moeda')}Cliente pagou tudo</button>
         <button data-a="editar" data-id="${id}">${ico('lapis')}Editar</button>`,
       producao: `<button class="wa" data-a="msgConf" data-id="${id}">${ico('aviao')}Avisar que vamos fazer</button>
-        <button class="go" data-a="entregue" data-id="${id}">${ico('caixa')}Entreguei e recebi o resto</button>
-        <button data-a="voltar" data-id="${id}">Ainda não pagou</button>`,
+        ${pagouTudo(p) ? '' : `<button class="go" data-a="resto" data-id="${id}">${ico('moeda')}Cliente pagou o resto</button>`}
+        <button class="go" data-a="entregue" data-id="${id}">${ico('caixa')}${pagouTudo(p) ? 'Entreguei' : 'Entreguei e recebi o resto'}</button>
+        <button data-a="voltar" data-id="${id}">${p.restoAntes ? 'Desfazer pagamento do resto' : 'Ainda não pagou'}</button>`,
       entregue: `<button data-a="reabrir" data-id="${id}">Desfazer entrega</button>`,
     }[p.status] || '';
     return `<li>
       <div class="ph"><div><div class="nm">${esc(p.cliente)}</div><div class="meta">Pedido de ${dataBR(p.criada)}</div></div>
-      <span class="st" style="--s:${s.cor}">${s.nome}</span></div>
+      <div class="sts"><span class="st" style="--s:${s.cor}">${s.nome}</span>${p.status === 'producao' && pagouTudo(p) ? '<span class="st pago">Pago</span>' : ''}</div></div>
       <ul class="pl">${p.itens.map(i => { const f = fotoDaPeca(i.pecaId); return `<li><span>${f ? `<img class="mf" src="${f}" alt="">` : ''}${n(i.qtd)}x ${esc(i.nome)}</span><span>${brl(i.qtd * i.preco)}</span></li>`; }).join('')}
       ${descontoPedido(p) > 0 ? `<li class="desc"><span>Desconto</span><span>− ${brl(descontoPedido(p))}</span></li>` : ''}
       <li><b>Total</b><b>${brl(total)}</b></li></ul>
@@ -621,14 +627,23 @@ function ligarEventos() {
     if (a === 'msgConf') abrirWhatsApp(msgConfirmacao(p), p.fone);
     if (a === 'copiarMsg') copiar(p.status === 'producao' ? msgConfirmacao(p) : msgOrcamento(p), 'Mensagem copiada!');
     if (a === 'sinal' && await perguntar(`${p.cliente} pagou a metade (${brl(sinalPedido(p))})? Confira se o dinheiro caiu no Pix.`, 'Pagou', 'Ainda não')) {
-      store.savePedido({ ...p, status: 'producao', sinalEm: Date.now() });
+      store.savePedido({ ...p, status: 'producao', pago: 'metade', restoAntes: false, sinalEm: Date.now() });
       toast('Hora de imprimir! Toque em “Avisar que vamos fazer”.');
     }
-    if (a === 'entregue' && await perguntar(`Entregou a peça e recebeu o resto (${brl(totalPedido(p) - sinalPedido(p))})?`, 'Sim', 'Ainda não')) {
+    if (a === 'tudo' && await perguntar(`${p.cliente} pagou tudo (${brl(totalPedido(p))})? Confira se o dinheiro caiu no Pix.`, 'Pagou tudo', 'Ainda não')) {
+      store.savePedido({ ...p, status: 'producao', pago: 'total', restoAntes: false, sinalEm: Date.now() });
+      toast('Pago! Hora de imprimir. Toque em “Avisar que vamos fazer”.');
+    }
+    if (a === 'resto' && await perguntar(`${p.cliente} pagou o resto (${brl(faltaPedido(p))}) antes da entrega? Confira se o dinheiro caiu no Pix.`, 'Pagou', 'Ainda não')) {
+      store.savePedido({ ...p, pago: 'total', restoAntes: true });
+      toast('Pedido pago! Na entrega não precisa cobrar nada.');
+    }
+    if (a === 'entregue' && await perguntar(pagouTudo(p) ? `Entregou as peças para ${p.cliente}?` : `Entregou a peça e recebeu o resto (${brl(faltaPedido(p))})?`, 'Sim', 'Ainda não')) {
       store.savePedido({ ...p, status: 'entregue', entregueEm: Date.now() });
       toast('Pedido concluído!');
     }
-    if (a === 'voltar') store.savePedido({ ...p, status: 'aguardando', sinalEm: null });
+    // desfaz um passo: o pagamento do resto (volta a metade) ou o primeiro pagamento (volta a esperar)
+    if (a === 'voltar') store.savePedido(p.restoAntes ? { ...p, pago: 'metade', restoAntes: false } : { ...p, status: 'aguardando', pago: null, restoAntes: false, sinalEm: null });
     if (a === 'reabrir') store.savePedido({ ...p, status: 'producao', entregueEm: null });
     if (a === 'editar') abrirForm(p);
     if (a === 'apagarPedido' && await perguntar(`Apagar o pedido de ${p.cliente}?`, 'Apagar', 'Cancelar')) store.deletePedido(p.id);

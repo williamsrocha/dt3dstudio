@@ -38,6 +38,7 @@ App de cálculo de preços, catálogo e pedidos da **DT 3D STUDIO**, uma pequena
 - **Desconto** no total do pedido.
 - **Avisos de negociação**: ainda ganham / só pagam o custo / prejuízo (com confirmação ao salvar).
 - Fluxo: **Esperando pagar a metade → Imprimindo → Entregue**.
+- Pagamento: **Cliente pagou a metade** ou **Cliente pagou tudo**; com a metade paga, **Cliente pagou o resto** antes da entrega. Pedido pago mostra a etiqueta **Pago**, "Falta: R$ 0,00" e só o botão **Entreguei**; a confirmação diz "Nada a pagar na entrega!". "Ainda não pagou" desfaz um passo (o resto ou o primeiro pagamento).
 - Mensagens prontas pelo WhatsApp: **orçamento** (com Pix e sinal de 50%) e **confirmação** (com data de entrega).
 - Totais: para imprimir, já recebido, a receber na entrega, lucro dos entregues.
 
@@ -76,7 +77,7 @@ Na pasta `tests/` (instruções no começo de cada arquivo):
 
 | Arquivo | O que testa |
 |---|---|
-| `tests/regressao.py` | O app inteiro: calculadora, lápis, olho do custo, vendas, pedidos, telefone, foto e PIN |
+| `tests/regressao.py` | O app inteiro: calculadora, lápis, olho do custo, vendas, pedidos (metade, tudo, resto), telefone, foto e PIN |
 | `tests/seguranca.py` | Dados maliciosos vindos da nuvem não podem rodar código no app |
 
 ## Decisões
@@ -109,6 +110,7 @@ Na pasta `tests/` (instruções no começo de cada arquivo):
 | 26/11/2026 | Revisão de código: proteção contra dados maliciosos da nuvem (10 brechas fechadas), regra única de lucro/prejuízo, telefone com uma regra só, CSS sem regra duplicada; testes em `tests/` |
 | 26/11/2026 | Vídeo de apresentação **v2** (vertical, 1 min 29 s, trilha original): lápis do preço, fotos, Vendi várias, preço combinado, WhatsApp obrigatório |
 | 26/11/2026 | Olho no Catálogo: custo e lucro escondidos do cliente por padrão; testes atualizados (30 verificações) |
+| 26/11/2026 | Pagamento total no pedido (**Cliente pagou tudo** e **Cliente pagou o resto**), totais e mensagem de confirmação corrigidos; testes: 41 verificações |
 
 ## Pendências e ideias
 
