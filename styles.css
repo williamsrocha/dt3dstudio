@@ -112,6 +112,10 @@ input:focus,select:focus,button:focus-visible,a:focus-visible{outline:3px solid 
 .foto .ic{width:28px;height:28px}
 .pl .mf{width:28px;height:28px;border-radius:6px;object-fit:cover;vertical-align:middle;margin-right:8px}
 dialog.foto-grande{width:min(420px,92vw)}
+#dlgVenda{width:min(440px,94vw)}
+#dlgVenda h3{margin:0 0 4px}
+#dlgVenda .row{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+.acts .varias{background:transparent;border-color:var(--lime);color:var(--ink);font-weight:600}
 .foto-grande img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:16px;display:block}
 .foto-grande p{margin:12px 0 0;font-weight:600;text-align:center}
 .totals{display:flex;flex-wrap:wrap;gap:10px;margin:4px 0 14px}

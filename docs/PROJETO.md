@@ -25,7 +25,10 @@ App de cálculo de preços, catálogo e pedidos da **DT 3D STUDIO**, uma pequena
 ### Catálogo
 - Preço de **tabela** de cada peça e quem fez (cor da borda: Davi azul, Theo verde).
 - **Foto** da peça: cortada em quadrado e reduzida a 320×320 (até ~30 KB) no próprio aparelho.
-- **Vendi uma!** para vendas na hora (escola), somadas no servidor (dois celulares não perdem venda).
+- **Vendi uma!** para vender uma peça na hora (escola), pelo preço do catálogo.
+- **Vendi várias**: quantidade e preço de cada (vem do catálogo, pode mudar, por ex. preço de pacote), com total, lucro e aviso se ficar abaixo do custo.
+- Cada venda guarda o **valor real recebido**; "Dinheiro recebido" e "Lucro de verdade" usam esses valores. Somas feitas no servidor: dois celulares não perdem venda.
+- **Desfazer última venda** desfaz a venda inteira (ex.: as 10 unidades de uma vez).
 - **Copiar catálogo para o WhatsApp**.
 
 ### Pedidos (encomendas)
@@ -88,11 +91,12 @@ App de cálculo de preços, catálogo e pedidos da **DT 3D STUDIO**, uma pequena
 | 24/11/2026 | WhatsApp do cliente obrigatório e formatado |
 | 24/11/2026 | Documentação do projeto em `docs/PROJETO.md` |
 | 26/11/2026 | Lápis na etiqueta para escolher o preço da peça antes de salvar no catálogo |
+| 26/11/2026 | **Vendi várias** (quantidade e preço por venda), valores reais recebidos e desfazer a última venda inteira |
 
 ## Pendências e ideias
 
 - [ ] Criar a chave Pix aleatória e cadastrar em Ajustes.
-- [ ] Avaliar **Vendi mais barato** (desconto na venda da escola).
+- [x] ~~Avaliar **Vendi mais barato**~~: resolvido pelo **Vendi várias** (26/11/2026).
 - [ ] Avaliar **Modo treino** (testes separados dos dados reais).
 - [ ] Gerar **imagem do catálogo** com fotos e preços para Instagram e WhatsApp.
 - [ ] Vídeo de apresentação: versão narrada pelo Davi ou versão curta de 30 s.

@@ -175,12 +175,40 @@ function mostrarCalculo() {
   atual = { ...r, nome: nm };
 }
 
+/* ---------- catálogo e vendas na hora ---------- */
+// Cada venda guarda o valor real recebido; peças antigas (só com a contagem) usam o preço do catálogo.
+const recebidoPeca = p => p.recebido ?? (p.vendidas || 0) * p.preco;
+const custoVendidoPeca = p => p.custoVendido ?? (p.vendidas || 0) * p.custo;
+function vender(p, qtd, preco) {
+  const v = { qtd, preco, custo: p.custo, em: Date.now() };
+  // peça antiga: primeiro grava o que já tinha sido vendido, para o increment somar certo
+  if (p.vendidas && p.recebido === undefined) store.savePeca({ ...p, recebido: recebidoPeca(p), custoVendido: custoVendidoPeca(p) });
+  store.registrarVenda(p.id, v);
+}
+let vendaPeca = null;
+function abrirVenda(p) {
+  vendaPeca = p;
+  $('vendaTitulo').textContent = 'Vender ' + p.nome;
+  $('vendaQtd').value = 1; $('vendaPreco').value = fmtMoney(p.preco);
+  $('vendaCatalogo').textContent = `Preço do catálogo: ${brl(p.preco)} · custo de cada: ${brl(p.custo)}`;
+  atualizarVenda(); $('dlgVenda').showModal();
+}
+function dadosVenda() { return { qtd: Math.max(1, Math.round(num('vendaQtd')) || 1), preco: num('vendaPreco') }; }
+function atualizarVenda() {
+  const { qtd, preco } = dadosVenda(); const lucro = qtd * (preco - vendaPeca.custo);
+  $('vendaTotal').textContent = brl(qtd * preco);
+  const [classe, texto] = lucro < -0.004 ? ['neg', `Abaixo do custo: vocês PERDEM ${brl(-lucro)} nesta venda!`]
+    : lucro < 0.005 ? ['zero', 'Assim vocês só pagam o custo, sem lucro.']
+    : ['ok', `Vocês ganham ${brl(lucro)} nesta venda.`];
+  $('vendaAviso').textContent = texto; $('vendaAviso').className = 'aviso ' + classe;
+}
+
 /* ---------- catálogo ---------- */
 function renderPecas() {
   const ps = st.pecas;
   const vendidas = ps.reduce((s, i) => s + (i.vendidas || 0), 0);
-  const ganho = ps.reduce((s, i) => s + (i.vendidas || 0) * i.preco, 0);
-  const lucro = ps.reduce((s, i) => s + (i.vendidas || 0) * (i.preco - i.custo), 0);
+  const ganho = ps.reduce((s, i) => s + recebidoPeca(i), 0);
+  const lucro = ps.reduce((s, i) => s + recebidoPeca(i) - custoVendidoPeca(i), 0);
   $('totPecas').innerHTML = `<div>Vendidas na escola<b>${vendidas}</b></div><div>Dinheiro recebido<b>${brl(ganho)}</b></div><div>Lucro de verdade<b>${brl(lucro)}</b></div>`;
   $('listaPecas').innerHTML = ps.length ? ps.map(i => `<li>
       <button class="foto" data-a="foto" data-id="${i.id}" style="--c:${QUEM[i.who] || 'var(--brand)'}"
@@ -190,7 +218,8 @@ function renderPecas() {
       <div class="pr">${brl(i.preco)}</div>
       <div class="acts">
         <button class="sold" data-a="vendi" data-id="${i.id}">${ico('moeda')}Vendi uma!</button>
-        <button data-a="desfazer" data-id="${i.id}">Desfazer venda</button>
+        <button class="varias" data-a="varias" data-id="${i.id}">${ico('moedas')}Vendi várias</button>
+        ${i.ultimaVenda ? `<button data-a="desfazer" data-id="${i.id}">Desfazer última venda (${i.ultimaVenda.qtd} un)</button>` : ''}
         <button class="go" data-a="orcar" data-id="${i.id}">${ico('aviao')}Mandar o preço</button>
         <button data-a="apagar" data-id="${i.id}">${ico('lixeira')}Apagar</button>
       </div></li>`).join('')
@@ -477,8 +506,14 @@ function ligarEventos() {
     const p = st.pecas.find(x => x.id === b.dataset.id); if (!p) return;
     const a = b.dataset.a;
     if (a === 'foto') { if (p.foto) verFoto(p); else escolherFoto(p.id); }
-    if (a === 'vendi') { store.contarVenda(p.id, 1); toast('Mais uma venda!'); }
-    if (a === 'desfazer' && p.vendidas > 0) store.contarVenda(p.id, -1);
+    if (a === 'vendi') { vender(p, 1, p.preco); toast('Mais uma venda!'); }
+    if (a === 'varias') abrirVenda(p);
+    if (a === 'desfazer' && p.ultimaVenda) {
+      const v = p.ultimaVenda;
+      if (v.qtd === 1 || await perguntar(`Desfazer a venda de ${v.qtd} un de “${p.nome}” (${brl(v.qtd * v.preco)})?`, 'Desfazer', 'Cancelar')) {
+        store.desfazerVenda(p.id); toast('Venda desfeita');
+      }
+    }
     if (a === 'orcar') { location.hash = 'pedidos'; abrirForm(null, p.id); }
     if (a === 'apagar' && await perguntar(`Apagar “${p.nome}” do catálogo?`, 'Apagar', 'Cancelar')) store.deletePeca(p.id);
   });
@@ -497,13 +532,26 @@ function ligarEventos() {
     if (p && await perguntar(`Remover a foto de “${p.nome}”?`, 'Remover', 'Cancelar')) { const { foto, ...sem } = p; store.savePeca(sem); }
   });
 
+  $('formVenda').addEventListener('input', atualizarVenda);
+  $('vendaCancelar').addEventListener('click', () => $('dlgVenda').close());
+  $('formVenda').addEventListener('submit', async e => {
+    e.preventDefault();
+    const { qtd, preco } = dadosVenda(); const p = vendaPeca;
+    if (!(preco > 0)) { $('vendaPreco').focus(); return; }
+    const lucro = qtd * (preco - p.custo);
+    $('dlgVenda').close();
+    if (lucro < -0.004 && !await perguntar(`Vendendo assim vocês PERDEM ${brl(-lucro)}. Registrar mesmo assim?`, 'Registrar', 'Voltar')) { $('dlgVenda').showModal(); return; }
+    vender(p, qtd, preco);
+    toast(qtd === 1 ? `Venda registrada: ${brl(preco)}` : `${qtd} vendas registradas: ${brl(qtd * preco)}`);
+  });
+
   $('copiarCatalogo').addEventListener('click', () => {
     const t = '*DT 3D STUDIO* — Pecinhas à venda\n' + (st.pecas.length ? st.pecas.map(i => `• ${i.nome} — ${brl(i.preco)}`).join('\n') : '(catálogo vazio)') + `\n\nSiga a gente no Instagram: ${INSTAGRAM}`;
     copiar(t, 'Catálogo copiado! Cole no WhatsApp.');
   });
   $('zerar').addEventListener('click', async () => {
     if (!await perguntar('Zerar a contagem de vendas na escola de todas as peças?', 'Zerar', 'Cancelar')) return;
-    st.pecas.filter(p => p.vendidas).forEach(p => store.savePeca({ ...p, vendidas: 0 }));
+    st.pecas.filter(p => p.vendidas || p.recebido).forEach(p => store.savePeca({ ...p, vendidas: 0, recebido: 0, custoVendido: 0, ultimaVenda: null }));
     toast('Vendas zeradas');
   });
 
