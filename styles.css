@@ -60,6 +60,16 @@ input:focus,select:focus,button:focus-visible,a:focus-visible{outline:3px solid 
 .tag .lbl{font-size:16px;margin-top:16px}
 .price{font-size:clamp(52px,13vw,84px);font-weight:700;line-height:1;white-space:nowrap;margin:4px 0 6px}
 .piece{font-size:18px;font-weight:500;min-height:27px}
+.preco-linha{display:flex;align-items:center;gap:14px}
+.editar-preco{flex:none;width:52px;height:52px;border-radius:50%;border:0;background:var(--on-brand);color:var(--brand-light);display:flex;align-items:center;justify-content:center;cursor:pointer}
+.editar-preco .ic{width:24px;height:24px}
+.preco-edit{display:flex;gap:10px;align-items:center;margin:6px 0 8px}
+.preco-edit .unit{flex:1}
+.preco-edit input{min-height:64px;font:700 34px Fredoka,sans-serif;background:var(--tag-alt);color:var(--tag-alt-ink);border-color:var(--on-brand)}
+.preco-edit .btn{background:var(--on-brand);color:var(--brand-light);min-height:64px}
+.sugerido{margin:0 0 4px;font-size:15px}
+.sugerido button{background:none;border:0;padding:4px 0;font:600 15px Fredoka,sans-serif;color:var(--on-brand);text-decoration:underline;cursor:pointer;min-height:32px}
+.alerta-tag{margin:8px 0 0;padding:8px 12px;border-radius:12px;background:var(--tag-alt);color:var(--perigo);font-weight:600}
 .minis{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px;margin-top:14px}
 .mini{background:var(--card);color:var(--ink);border-radius:14px;padding:10px 12px}
 .mini small{color:var(--soft);font-size:14px}

@@ -18,6 +18,7 @@ App de cálculo de preços, catálogo e pedidos da **DT 3D STUDIO**, uma pequena
   - **reserva para falhas** (sobre filamento, energia e desgaste; os extras não se perdem numa falha);
   - **lucro em cima do custo** (botões Metade a mais / O dobro / O triplo, ou porcentagem livre);
   - **arredondamento** para cima (ex.: de R$ 0,50 em R$ 0,50).
+- **Lápis na etiqueta**: deixa escolher o preço da peça antes de salvar no catálogo (mostra o sugerido pelo app, recalcula o lucro e avisa se ficar abaixo do custo). Escolher um botão de lucro, tocar em "Usar o sugerido" ou em **Limpar** volta ao preço calculado.
 - Sempre abre limpo; botão **Limpar** volta ao começo.
 - Atalho **Mandar o preço para um cliente**: salva a peça e abre o pedido.
 
@@ -85,6 +86,8 @@ App de cálculo de preços, catálogo e pedidos da **DT 3D STUDIO**, uma pequena
 | 24/11/2026 | Preço combinado por peça em cada pedido |
 | 24/11/2026 | Fotos das peças no catálogo |
 | 24/11/2026 | WhatsApp do cliente obrigatório e formatado |
+| 24/11/2026 | Documentação do projeto em `docs/PROJETO.md` |
+| 26/11/2026 | Lápis na etiqueta para escolher o preço da peça antes de salvar no catálogo |
 
 ## Pendências e ideias
 

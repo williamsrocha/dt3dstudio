@@ -59,8 +59,17 @@
   <section class="view" id="v-calcular">
     <div class="grid">
       <section class="tag" aria-live="polite">
-        <div class="lbl">Preço sugerido por peça</div>
-        <div class="price" id="price">R$ 0,00</div>
+        <div class="lbl" id="precoLbl">Preço sugerido por peça</div>
+        <div class="preco-linha" id="precoLinha">
+          <div class="price" id="price">R$ 0,00</div>
+          <button class="editar-preco" id="editarPreco" type="button" aria-label="Mudar o preço"><svg class="ic" aria-hidden="true"><use href="#i-lapis"/></svg></button>
+        </div>
+        <form class="preco-edit" id="precoEdit" hidden novalidate>
+          <div class="unit"><input id="precoManual" type="text" inputmode="numeric" data-money autocomplete="off" aria-label="Seu preço por peça"><span>R$</span></div>
+          <button class="btn" type="submit">Pronto</button>
+        </form>
+        <p class="sugerido" id="sugerido" hidden><span id="sugeridoTxt"></span> <button type="button" id="voltarSugerido">Usar o sugerido</button></p>
+        <p class="alerta-tag" id="alertaTag" hidden></p>
         <div class="piece" id="pieceName">Preencha os dados da peça</div>
         <div class="minis">
           <div class="mini"><small>Custo para fazer</small><b id="cost">R$ 0,00</b></div>

@@ -38,6 +38,7 @@ let st = { config: {}, pecas: [], pedidos: [] };
 let who = local.get('p3d-who', 'Davi');
 let atual = null;          // resultado do último cálculo
 let editando = null;       // id do pedido em edição
+let precoManual = null;    // preço escolhido pelo lápis (null = usa o sugerido)
 
 /* ---------- utilidades de interface ---------- */
 let tt;
@@ -131,13 +132,37 @@ function calcular() {
 function limparCalculadora() {
   $('nome').value = ''; $('peso').value = ''; $('qtd').value = 1;
   $('horas').value = ''; $('minutos').value = ''; $('extras').value = '0,00';
+  precoManual = null; fecharEdicaoPreco();
   mostrarCalculo();
 }
 
+// Lápis da etiqueta: deixa escolher o preço antes de salvar a peça no catálogo.
+function abrirEdicaoPreco() {
+  $('precoLinha').hidden = true; $('precoEdit').hidden = false;
+  $('precoManual').value = fmtMoney(atual.preco);
+  $('precoManual').focus();
+}
+function fecharEdicaoPreco() { $('precoLinha').hidden = false; $('precoEdit').hidden = true; }
+function confirmarPreco() {
+  const v = lerDinheiro($('precoManual').value);
+  if (v > 0) precoManual = Math.abs(v - atual.sugerido) < 0.005 ? null : v;   // igual ao sugerido = volta ao automático
+  fecharEdicaoPreco(); mostrarCalculo();
+}
+
 function mostrarCalculo() {
-  const r = calcular();
+  const sug = calcular();
+  // com preço escolhido no lápis, o lucro passa a ser preço escolhido − custo
+  const preco = precoManual ?? sug.preco;
+  const r = { ...sug, sugerido: sug.preco, preco, lucro: Math.max(0, preco - sug.custo) };
   const nm = $('nome').value.trim();
+  const manual = precoManual !== null;
+  $('precoLbl').textContent = manual ? 'Seu preço por peça' : 'Preço sugerido por peça';
   $('price').textContent = brl(r.preco);
+  $('sugerido').hidden = !manual;
+  $('sugeridoTxt').textContent = `Sugerido pelo app: ${brl(r.sugerido)}.`;
+  const perde = preco - sug.custo;
+  $('alertaTag').hidden = !(manual && perde < 0.005);
+  $('alertaTag').textContent = perde < -0.004 ? `Abaixo do custo: vocês perdem ${brl(-perde)} em cada peça!` : 'Assim vocês só pagam o custo, sem lucro.';
   $('cost').textContent = brl(r.custo);
   $('profit').textContent = brl(r.lucro);
   $('pieceName').textContent = nm ? `${nm} · feita por ${who}` : `Feita por ${who}`;
@@ -413,14 +438,19 @@ function ligarEventos() {
     i.addEventListener('mouseup', e => { if (i.dataset.sel) { e.preventDefault(); delete i.dataset.sel; } });
     i.addEventListener('input', () => { delete i.dataset.sel; });
   });
-  document.querySelectorAll('#v-calcular input').forEach(i => i.addEventListener('input', () => { mostrarCalculo(); if (i.dataset.cfg !== undefined) salvarConfig(); }));
+  document.querySelectorAll('#v-calcular input:not(#precoManual)').forEach(i => i.addEventListener('input', () => { mostrarCalculo(); if (i.dataset.cfg !== undefined) salvarConfig(); }));
+  $('editarPreco').addEventListener('click', abrirEdicaoPreco);
+  $('precoEdit').addEventListener('submit', e => { e.preventDefault(); confirmarPreco(); });
+  $('precoManual').addEventListener('blur', () => { if (!$('precoEdit').hidden) confirmarPreco(); });
+  $('voltarSugerido').addEventListener('click', () => { precoManual = null; mostrarCalculo(); toast('Voltou ao preço sugerido'); });
   cfgInputs.forEach(i => { if (!i.closest('#v-calcular')) i.addEventListener('input', () => { mostrarCalculo(); salvarConfig(); }); });
   $('limpar').addEventListener('click', () => { limparCalculadora(); window.scrollTo(0, 0); toast('Campos limpos'); });
   $('home').addEventListener('click', e => {
     if (location.hash === '#calcular' || !location.hash) { e.preventDefault(); rota(); }
   });
   $('who').addEventListener('click', e => { const b = e.target.closest('button'); if (b) { setWho(b.dataset.k); mostrarCalculo(); } });
-  $('presets').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; $('lucro').value = b.dataset.v; mostrarCalculo(); salvarConfig(); });
+  // escolher um botão de lucro volta ao preço calculado pelo app
+  $('presets').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; $('lucro').value = b.dataset.v; precoManual = null; mostrarCalculo(); salvarConfig(); });
 
   // Salva a peça calculada; se já existe uma igual (mesmo nome, quem fez e preço), reaproveita.
   function salvarPecaAtual() {
