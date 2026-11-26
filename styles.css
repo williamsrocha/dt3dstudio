@@ -170,5 +170,6 @@ dialog p{margin:0;font-size:17px}
 
 @media (max-width:760px){.grid{grid-template-columns:minmax(0,1fr)}.tag{position:relative;top:0}}
 @media (max-width:420px){.row{grid-template-columns:minmax(0,1fr)}.presets button{font-size:14px}}
+@media (max-width:379px){.olho span{display:none}.olho{padding:0 12px}}  /* tela estreita: só o ícone do olho */
 @media (min-width:900px){.tabs{left:50%;right:auto;transform:translateX(-50%);width:560px;bottom:14px;border:2px solid var(--line);border-radius:20px;box-shadow:0 8px 30px rgba(0,0,0,.18)}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}

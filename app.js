@@ -222,6 +222,7 @@ function renderPecas() {
   const OCULTO = 'R$\u00a0••••';
   $('totPecas').innerHTML = `<div>Vendidas na escola<b>${vendidas}</b></div><div>Dinheiro recebido<b>${brl(ganho)}</b></div><div>Lucro de verdade<b>${verCusto ? brl(lucro) : OCULTO}</b></div>`;
   $('olho').setAttribute('aria-pressed', verCusto);
+  $('olho').setAttribute('aria-label', verCusto ? 'Esconder custo' : 'Ver custo');
   $('olho').innerHTML = `${ico(verCusto ? 'olho' : 'olho-fechado')}<span>${verCusto ? 'Esconder' : 'Ver custo'}</span>`;
   $('listaPecas').innerHTML = ps.length ? ps.map(i => { const id = esc(i.id), foto = fotoSegura(i.foto); return `<li>
       <button class="foto" data-a="foto" data-id="${id}" style="--c:${QUEM[i.who] || 'var(--brand)'}"
