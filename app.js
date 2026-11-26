@@ -27,6 +27,14 @@ function mascaraDinheiro(i) {
   i.value = fmtMoney(centavos / 100);
   try { i.setSelectionRange(i.value.length, i.value.length); } catch { /* sem cursor */ }
 }
+// Comparações de dinheiro: diferenças menores que meio centavo contam como iguais.
+const CENTAVO = 0.005;
+const iguais = (a, b) => Math.abs(a - b) < CENTAVO;
+// Faixa do lucro, usada em todos os avisos: 'neg' (prejuízo), 'zero' (só paga o custo) ou 'ok'.
+const faixaLucro = l => l <= -CENTAVO ? 'neg' : l < CENTAVO ? 'zero' : 'ok';
+// Dados que vêm da nuvem nunca entram crus no HTML: texto passa por esc(), número por n(), foto por fotoSegura().
+const n = v => Number(v) || 0;
+const fotoSegura = u => /^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(u || '') ? u : '';
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const dataBR = t => new Date(t).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
 const DIA = 86400000;
@@ -74,12 +82,11 @@ function formatarFone(txt) {
   const meio = d.length === 11 ? 7 : 6;
   return `(${d.slice(0, 2)}) ${d.slice(2, meio)}${d.length > meio ? '-' + d.slice(meio) : ''}`;
 }
-const foneValido = txt => /^[1-9][0-9](9?\d{8})$/.test(digitosFone(txt)) && [10, 11].includes(digitosFone(txt).length);
+const foneValido = txt => /^[1-9]\d9?\d{8}$/.test(digitosFone(txt));   // DDD + 8 ou 9 dígitos
 
 function abrirWhatsApp(texto, fone) {
-  let n = String(fone || '').replace(/\D/g, '');
-  if (n.length === 10 || n.length === 11) n = '55' + n;
-  const url = (n.length >= 12 ? `https://wa.me/${n}` : 'https://wa.me/') + '?text=' + encodeURIComponent(texto);
+  const d = digitosFone(fone);
+  const url = (foneValido(d) ? `https://wa.me/55${d}` : 'https://wa.me/') + '?text=' + encodeURIComponent(texto);
   window.open(url, '_blank', 'noopener');
 }
 
@@ -145,7 +152,7 @@ function abrirEdicaoPreco() {
 function fecharEdicaoPreco() { $('precoLinha').hidden = false; $('precoEdit').hidden = true; }
 function confirmarPreco() {
   const v = lerDinheiro($('precoManual').value);
-  if (v > 0) precoManual = Math.abs(v - atual.sugerido) < 0.005 ? null : v;   // igual ao sugerido = volta ao automático
+  if (v > 0) precoManual = iguais(v, atual.sugerido) ? null : v;   // igual ao sugerido = volta ao automático
   fecharEdicaoPreco(); mostrarCalculo();
 }
 
@@ -160,9 +167,9 @@ function mostrarCalculo() {
   $('price').textContent = brl(r.preco);
   $('sugerido').hidden = !manual;
   $('sugeridoTxt').textContent = `Sugerido pelo app: ${brl(r.sugerido)}.`;
-  const perde = preco - sug.custo;
-  $('alertaTag').hidden = !(manual && perde < 0.005);
-  $('alertaTag').textContent = perde < -0.004 ? `Abaixo do custo: vocês perdem ${brl(-perde)} em cada peça!` : 'Assim vocês só pagam o custo, sem lucro.';
+  const margem = preco - sug.custo, faixa = faixaLucro(margem);
+  $('alertaTag').hidden = !(manual && faixa !== 'ok');
+  $('alertaTag').textContent = faixa === 'neg' ? `Abaixo do custo: vocês perdem ${brl(-margem)} em cada peça!` : 'Assim vocês só pagam o custo, sem lucro.';
   $('cost').textContent = brl(r.custo);
   $('profit').textContent = brl(r.lucro);
   $('pieceName').textContent = nm ? `${nm} · feita por ${who}` : `Feita por ${who}`;
@@ -170,15 +177,15 @@ function mostrarCalculo() {
     ['Extras', r.ext, 'var(--c-ext)'], ['Falhas', r.falha, 'var(--c-fal)'], ['Seu lucro', r.lucro, 'var(--c-luc)', 'luc']];
   const tot = partes.reduce((s, p) => s + p[1], 0) || 1;
   $('bar').innerHTML = partes.map(p => `<i style="width:${p[1] / tot * 100}%;background:${p[2]}" title="${p[0]}"></i>`).join('');
-  $('legend').innerHTML = partes.filter(p => p[1] > 0.004).map(p => `<span class="${p[3] || ''}" style="--d:${p[2]}">${p[0]} ${brl(p[1])}</span>`).join('');
+  $('legend').innerHTML = partes.filter(p => p[1] >= CENTAVO).map(p => `<span class="${p[3] || ''}" style="--d:${p[2]}">${p[0]} ${brl(p[1])}</span>`).join('');
   syncPresets();
   atual = { ...r, nome: nm };
 }
 
-/* ---------- catálogo e vendas na hora ---------- */
+/* ---------- catálogo e vendas na hora (escola) ---------- */
 // Cada venda guarda o valor real recebido; peças antigas (só com a contagem) usam o preço do catálogo.
-const recebidoPeca = p => p.recebido ?? (p.vendidas || 0) * p.preco;
-const custoVendidoPeca = p => p.custoVendido ?? (p.vendidas || 0) * p.custo;
+const recebidoPeca = p => n(p.recebido ?? n(p.vendidas) * n(p.preco));
+const custoVendidoPeca = p => n(p.custoVendido ?? n(p.vendidas) * n(p.custo));
 function vender(p, qtd, preco) {
   const v = { qtd, preco, custo: p.custo, em: Date.now() };
   // peça antiga: primeiro grava o que já tinha sido vendido, para o increment somar certo
@@ -197,32 +204,31 @@ function dadosVenda() { return { qtd: Math.max(1, Math.round(num('vendaQtd')) ||
 function atualizarVenda() {
   const { qtd, preco } = dadosVenda(); const lucro = qtd * (preco - vendaPeca.custo);
   $('vendaTotal').textContent = brl(qtd * preco);
-  const [classe, texto] = lucro < -0.004 ? ['neg', `Abaixo do custo: vocês PERDEM ${brl(-lucro)} nesta venda!`]
-    : lucro < 0.005 ? ['zero', 'Assim vocês só pagam o custo, sem lucro.']
-    : ['ok', `Vocês ganham ${brl(lucro)} nesta venda.`];
-  $('vendaAviso').textContent = texto; $('vendaAviso').className = 'aviso ' + classe;
+  const faixa = faixaLucro(lucro);
+  $('vendaAviso').textContent = { neg: `Abaixo do custo: vocês PERDEM ${brl(-lucro)} nesta venda!`,
+    zero: 'Assim vocês só pagam o custo, sem lucro.', ok: `Vocês ganham ${brl(lucro)} nesta venda.` }[faixa];
+  $('vendaAviso').className = 'aviso ' + faixa;
 }
 
-/* ---------- catálogo ---------- */
 function renderPecas() {
   const ps = st.pecas;
-  const vendidas = ps.reduce((s, i) => s + (i.vendidas || 0), 0);
+  const vendidas = ps.reduce((s, i) => s + n(i.vendidas), 0);
   const ganho = ps.reduce((s, i) => s + recebidoPeca(i), 0);
   const lucro = ps.reduce((s, i) => s + recebidoPeca(i) - custoVendidoPeca(i), 0);
   $('totPecas').innerHTML = `<div>Vendidas na escola<b>${vendidas}</b></div><div>Dinheiro recebido<b>${brl(ganho)}</b></div><div>Lucro de verdade<b>${brl(lucro)}</b></div>`;
-  $('listaPecas').innerHTML = ps.length ? ps.map(i => `<li>
-      <button class="foto" data-a="foto" data-id="${i.id}" style="--c:${QUEM[i.who] || 'var(--brand)'}"
-        aria-label="${i.foto ? 'Ver foto de' : 'Colocar foto em'} ${esc(i.nome)}">${i.foto ? `<img src="${i.foto}" alt="">` : ico('camera')}</button>
+  $('listaPecas').innerHTML = ps.length ? ps.map(i => { const id = esc(i.id), foto = fotoSegura(i.foto); return `<li>
+      <button class="foto" data-a="foto" data-id="${id}" style="--c:${QUEM[i.who] || 'var(--brand)'}"
+        aria-label="${foto ? 'Ver foto de' : 'Colocar foto em'} ${esc(i.nome)}">${foto ? `<img src="${foto}" alt="">` : ico('camera')}</button>
       <div><div class="nm">${esc(i.nome)}</div>
-      <div class="meta">${esc(i.who)} · custo ${brl(i.custo)} · vendidas: ${i.vendidas || 0}</div></div>
+      <div class="meta">${esc(i.who)} · custo ${brl(i.custo)} · vendidas: ${n(i.vendidas)}</div></div>
       <div class="pr">${brl(i.preco)}</div>
       <div class="acts">
-        <button class="sold" data-a="vendi" data-id="${i.id}">${ico('moeda')}Vendi uma!</button>
-        <button class="varias" data-a="varias" data-id="${i.id}">${ico('moedas')}Vendi várias</button>
-        ${i.ultimaVenda ? `<button data-a="desfazer" data-id="${i.id}">Desfazer última venda (${i.ultimaVenda.qtd} un)</button>` : ''}
-        <button class="go" data-a="orcar" data-id="${i.id}">${ico('aviao')}Mandar o preço</button>
-        <button data-a="apagar" data-id="${i.id}">${ico('lixeira')}Apagar</button>
-      </div></li>`).join('')
+        <button class="sold" data-a="vendi" data-id="${id}">${ico('moeda')}Vendi uma!</button>
+        <button class="varias" data-a="varias" data-id="${id}">${ico('moedas')}Vendi várias</button>
+        ${i.ultimaVenda ? `<button data-a="desfazer" data-id="${id}">Desfazer última venda (${n(i.ultimaVenda.qtd)} un)</button>` : ''}
+        <button class="go" data-a="orcar" data-id="${id}">${ico('aviao')}Mandar o preço</button>
+        <button data-a="apagar" data-id="${id}">${ico('lixeira')}Apagar</button>
+      </div></li>`; }).join('')
     : '<li class="empty">Nenhuma peça no catálogo ainda. Calcule o preço e toque em “Salvar no catálogo”.</li>';
 }
 
@@ -230,7 +236,7 @@ function renderPecas() {
 // A foto é reduzida para um quadrado pequeno (vitrine) e guardada junto com a peça,
 // para caber no plano gratuito do Firebase sem precisar do Storage (que é pago).
 const FOTO_LADO = 320;
-const fotoDaPeca = id => st.pecas.find(p => p.id === id)?.foto || '';
+const fotoDaPeca = id => fotoSegura(st.pecas.find(p => p.id === id)?.foto);
 async function reduzirFoto(arquivo) {
   const img = await createImageBitmap(arquivo, { imageOrientation: 'from-image' });
   const lado = Math.min(img.width, img.height);
@@ -245,16 +251,16 @@ let fotoPecaId = null;
 function escolherFoto(id) { fotoPecaId = id; $('fotoInput').value = ''; $('fotoInput').click(); }
 function verFoto(p) {
   fotoPecaId = p.id;
-  $('fotoGrande').src = p.foto; $('fotoGrande').alt = 'Foto de ' + p.nome; $('fotoNome').textContent = p.nome;
+  $('fotoGrande').src = fotoSegura(p.foto); $('fotoGrande').alt = 'Foto de ' + p.nome; $('fotoNome').textContent = p.nome;
   $('dlgFoto').showModal();
 }
 
 /* ---------- pedidos ---------- */
 // Valores do pedido: o desconto sai do subtotal; a metade e o lucro já consideram o desconto.
-const subtotalPedido = p => p.itens.reduce((s, i) => s + i.qtd * i.preco, 0);
-const descontoPedido = p => Math.min(p.desconto || 0, subtotalPedido(p));
+const subtotalPedido = p => p.itens.reduce((s, i) => s + n(i.qtd) * n(i.preco), 0);
+const descontoPedido = p => Math.min(n(p.desconto), subtotalPedido(p));
 const totalPedido = p => subtotalPedido(p) - descontoPedido(p);
-const custoPedido = p => p.itens.reduce((s, i) => s + i.qtd * (i.custo || 0), 0);
+const custoPedido = p => p.itens.reduce((s, i) => s + n(i.qtd) * n(i.custo), 0);
 const lucroPedido = p => totalPedido(p) - custoPedido(p);
 const sinalPedido = p => Math.round(totalPedido(p) * 50) / 100;
 
@@ -300,7 +306,7 @@ function renderPedidos() {
   const lucro = ps.filter(p => p.status === 'entregue').reduce((s, p) => s + lucroPedido(p), 0);
   $('totPedidos').innerHTML = `<div>Para imprimir<b>${emProd}</b></div><div>Já recebido<b>${brl(recebido)}</b></div><div>A receber na entrega<b>${brl(aReceber)}</b></div><div>Lucro dos entregues<b>${brl(lucro)}</b></div>`;
   $('listaPedidos').innerHTML = ps.length ? ps.map(p => {
-    const s = STATUS[p.status] || STATUS.aguardando;
+    const s = STATUS[p.status] || STATUS.aguardando, id = esc(p.id);
     const total = totalPedido(p), sinal = sinalPedido(p);
     const info = p.status === 'aguardando'
       ? `<span>Metade: <b>${brl(sinal)}</b></span><span>Preço vale até <b>${dataBR(p.criada + cfg('validade') * DIA)}</b></span>`
@@ -308,24 +314,24 @@ function renderPedidos() {
         ? `<span>Metade paga: <b>${brl(sinal)}</b></span><span>Falta: <b>${brl(total - sinal)}</b></span><span>Entrega: <b>${dataBR(p.sinalEm + p.prazo * DIA)}</b></span>`
         : `<span>Pago: <b>${brl(total)}</b></span><span>Entregue em <b>${dataBR(p.entregueEm)}</b></span>`;
     const bts = {
-      aguardando: `<button class="wa" data-a="msgOrc" data-id="${p.id}">${ico('aviao')}Mandar preço no WhatsApp</button>
-        <button class="go" data-a="sinal" data-id="${p.id}">${ico('metade')}Cliente pagou a metade</button>
-        <button data-a="editar" data-id="${p.id}">${ico('lapis')}Editar</button>`,
-      producao: `<button class="wa" data-a="msgConf" data-id="${p.id}">${ico('aviao')}Avisar que vamos fazer</button>
-        <button class="go" data-a="entregue" data-id="${p.id}">${ico('caixa')}Entreguei e recebi o resto</button>
-        <button data-a="voltar" data-id="${p.id}">Ainda não pagou</button>`,
-      entregue: `<button data-a="reabrir" data-id="${p.id}">Desfazer entrega</button>`,
+      aguardando: `<button class="wa" data-a="msgOrc" data-id="${id}">${ico('aviao')}Mandar preço no WhatsApp</button>
+        <button class="go" data-a="sinal" data-id="${id}">${ico('metade')}Cliente pagou a metade</button>
+        <button data-a="editar" data-id="${id}">${ico('lapis')}Editar</button>`,
+      producao: `<button class="wa" data-a="msgConf" data-id="${id}">${ico('aviao')}Avisar que vamos fazer</button>
+        <button class="go" data-a="entregue" data-id="${id}">${ico('caixa')}Entreguei e recebi o resto</button>
+        <button data-a="voltar" data-id="${id}">Ainda não pagou</button>`,
+      entregue: `<button data-a="reabrir" data-id="${id}">Desfazer entrega</button>`,
     }[p.status] || '';
     return `<li>
       <div class="ph"><div><div class="nm">${esc(p.cliente)}</div><div class="meta">Pedido de ${dataBR(p.criada)}</div></div>
       <span class="st" style="--s:${s.cor}">${s.nome}</span></div>
-      <ul class="pl">${p.itens.map(i => { const f = fotoDaPeca(i.pecaId); return `<li><span>${f ? `<img class="mf" src="${f}" alt="">` : ''}${i.qtd}x ${esc(i.nome)}</span><span>${brl(i.qtd * i.preco)}</span></li>`; }).join('')}
+      <ul class="pl">${p.itens.map(i => { const f = fotoDaPeca(i.pecaId); return `<li><span>${f ? `<img class="mf" src="${f}" alt="">` : ''}${n(i.qtd)}x ${esc(i.nome)}</span><span>${brl(i.qtd * i.preco)}</span></li>`; }).join('')}
       ${descontoPedido(p) > 0 ? `<li class="desc"><span>Desconto</span><span>− ${brl(descontoPedido(p))}</span></li>` : ''}
       <li><b>Total</b><b>${brl(total)}</b></li></ul>
       <div class="pv">${info}</div>
       <div class="acts">${bts}
-        <button data-a="copiarMsg" data-id="${p.id}">${ico('copiar')}Copiar mensagem</button>
-        <button data-a="apagarPedido" data-id="${p.id}">${ico('lixeira')}Apagar</button></div></li>`;
+        <button data-a="copiarMsg" data-id="${id}">${ico('copiar')}Copiar mensagem</button>
+        <button data-a="apagarPedido" data-id="${id}">${ico('lixeira')}Apagar</button></div></li>`;
   }).join('') : '<li class="empty">Nenhum pedido ainda. Toque em “Novo pedido” ou em “Mandar o preço” no catálogo.</li>';
 }
 
@@ -336,7 +342,7 @@ async function enviarOrcamento(p) {
 
 /* formulário de pedido */
 function opcoesPecas(sel) {
-  return st.pecas.map(p => `<option value="${p.id}"${p.id === sel ? ' selected' : ''}>${esc(p.nome)}</option>`).join('');
+  return st.pecas.map(p => `<option value="${esc(p.id)}"${p.id === sel ? ' selected' : ''}>${esc(p.nome)}</option>`).join('');
 }
 // Cada linha do pedido: peça do catálogo, quantidade e preço combinado com ESTE cliente.
 // O preço vem do catálogo, mas pode ser mudado; o catálogo continua como está.
@@ -345,7 +351,7 @@ function infoLinha(div) {
   const peca = pecaDaLinha(div); if (!peca) return;
   const preco = lerDinheiro(div.querySelector('.preco').value);
   const dif = preco - peca.preco;
-  const txt = Math.abs(dif) < 0.005 ? `Preço do catálogo: ${brl(peca.preco)}`
+  const txt = iguais(dif, 0) ? `Preço do catálogo: ${brl(peca.preco)}`
     : `Catálogo: ${brl(peca.preco)} · combinado ${dif > 0 ? 'acima' : 'abaixo'} (${dif > 0 ? '+' : '−'}\u00a0${brl(Math.abs(dif))})`;
   div.querySelector('.info').textContent = txt;
 }
@@ -356,7 +362,7 @@ function linhaForm(item = {}) {
   const preco = item.preco ?? st.pecas.find(p => p.id === pecaId)?.preco ?? 0;
   div.innerHTML = `<select class="peca" aria-label="Peça">${opcoesPecas(pecaId)}</select>
     <button type="button" class="tirar" aria-label="Tirar peça">×</button>
-    <div class="unit q"><input class="qtd" type="number" inputmode="numeric" min="1" step="1" value="${item.qtd || 1}" aria-label="Quantidade"><span>un</span></div>
+    <div class="unit q"><input class="qtd" type="number" inputmode="numeric" min="1" step="1" value="${n(item.qtd) || 1}" aria-label="Quantidade"><span>un</span></div>
     <div class="unit v"><input class="preco" type="text" inputmode="numeric" data-money value="${fmtMoney(preco)}" aria-label="Preço combinado de cada uma"><span>R$ cada</span></div>
     <small class="info"></small>`;
   $('itensForm').appendChild(div);
@@ -369,7 +375,7 @@ function itensDoForm() {
     const preco = lerDinheiro(div.querySelector('.preco').value);
     return peca && { pecaId: peca.id, nome: peca.nome, preco, precoCatalogo: peca.preco, custo: peca.custo, qtd };
   }).filter(Boolean).reduce((lista, i) => {   // mesma peça pelo mesmo preço vira uma linha só
-    const j = lista.find(x => x.pecaId === i.pecaId && Math.abs(x.preco - i.preco) < 0.005);
+    const j = lista.find(x => x.pecaId === i.pecaId && iguais(x.preco, i.preco));
     if (j) j.qtd += i.qtd; else lista.push(i);
     return lista;
   }, []);
@@ -383,14 +389,15 @@ function atualizarTotalForm() {
   $('formSinal').textContent = 'Metade para começar: ' + brl(sinalPedido(p));
   // o aviso aparece quando o preço foi negociado (desconto ou preço diferente do catálogo)
   const av = $('formLucro');
-  const mudou = p.itens.filter(i => Math.abs(i.preco - i.precoCatalogo) >= 0.005);
+  const mudou = p.itens.filter(i => !iguais(i.preco, i.precoCatalogo));
   if (!(p.desconto > 0) && !mudou.length) { av.textContent = ''; av.className = 'aviso'; return; }
   if (p.desconto > subtotalPedido(p)) { av.textContent = 'O desconto é maior que o valor do pedido.'; av.className = 'aviso neg'; return; }
-  const abaixoCusto = p.itens.find(i => i.preco < i.custo - 0.004);
+  const abaixoCusto = p.itens.find(i => faixaLucro(i.preco - i.custo) === 'neg');
   const subiu = !(p.desconto > 0) && mudou.every(i => i.preco > i.precoCatalogo);
-  const [classe, texto] = lucro < -0.004 ? ['neg', `Com esse preço vocês PERDEM ${brl(-lucro)}!`]
+  const faixa = faixaLucro(lucro);
+  const [classe, texto] = faixa === 'neg' ? ['neg', `Com esse preço vocês PERDEM ${brl(-lucro)}!`]
     : abaixoCusto ? ['neg', `“${abaixoCusto.nome}” por ${brl(abaixoCusto.preco)} sai mais barato que o custo (${brl(abaixoCusto.custo)}).`]
-    : lucro < 0.005 ? ['zero', 'Cuidado: assim vocês só pagam o custo, sem lucro nenhum.']
+    : faixa === 'zero' ? ['zero', 'Cuidado: assim vocês só pagam o custo, sem lucro nenhum.']
     : subiu ? ['ok', `Boa negociação! Vocês ganham ${brl(lucro)} neste pedido.`]
     : ['ok', `Com esse preço vocês ainda ganham ${brl(lucro)}.`];
   av.textContent = texto; av.className = 'aviso ' + classe;
@@ -485,7 +492,7 @@ function ligarEventos() {
   function salvarPecaAtual() {
     mostrarCalculo();
     if (!atual.nome) { toast('Dê um nome para a peça'); $('nome').focus(); return null; }
-    const igual = st.pecas.find(p => p.nome === atual.nome && p.who === who && Math.abs(p.preco - atual.preco) < 0.005);
+    const igual = st.pecas.find(p => p.nome === atual.nome && p.who === who && iguais(p.preco, atual.preco));
     if (igual) return { peca: igual, nova: false };
     const peca = { id: uid(), nome: atual.nome, who, preco: atual.preco, custo: atual.custo, vendidas: 0, criada: Date.now() };
     store.savePeca(peca);
@@ -540,7 +547,7 @@ function ligarEventos() {
     if (!(preco > 0)) { $('vendaPreco').focus(); return; }
     const lucro = qtd * (preco - p.custo);
     $('dlgVenda').close();
-    if (lucro < -0.004 && !await perguntar(`Vendendo assim vocês PERDEM ${brl(-lucro)}. Registrar mesmo assim?`, 'Registrar', 'Voltar')) { $('dlgVenda').showModal(); return; }
+    if (faixaLucro(lucro) === 'neg' && !await perguntar(`Vendendo assim vocês PERDEM ${brl(-lucro)}. Registrar mesmo assim?`, 'Registrar', 'Voltar')) { $('dlgVenda').showModal(); return; }
     vender(p, qtd, preco);
     toast(qtd === 1 ? `Venda registrada: ${brl(preco)}` : `${qtd} vendas registradas: ${brl(qtd * preco)}`);
   });
@@ -589,7 +596,7 @@ function ligarEventos() {
       cliente, fone: formatarFone($('fone').value), prazo: Math.round(num('prazo')), itens, desconto,
     };
     const lucro = lucroPedido(pedido);
-    if (lucro < -0.004 && !await perguntar(`Com esse preço vocês PERDEM ${brl(-lucro)}. Salvar mesmo assim?`, 'Salvar assim', 'Voltar')) return;
+    if (faixaLucro(lucro) === 'neg' && !await perguntar(`Com esse preço vocês PERDEM ${brl(-lucro)}. Salvar mesmo assim?`, 'Salvar assim', 'Voltar')) return;
     store.savePedido(pedido);
     fecharForm();
     if (await perguntar(`Pedido ${antigo ? 'atualizado' : 'salvo'}! Mandar o preço para ${cliente} agora pelo WhatsApp?`, 'Mandar agora', 'Depois')) enviarOrcamento(pedido);

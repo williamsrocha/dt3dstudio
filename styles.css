@@ -128,10 +128,10 @@ dialog.foto-grande{width:min(420px,92vw)}
 .form h3{margin-top:0}
 .form input,.form select{background:var(--card)}
 .it{display:grid;grid-template-columns:96px minmax(0,1fr) 44px;grid-template-areas:"p p x" "q v v" "i i i";gap:8px;margin-bottom:10px;padding:10px;border:2px solid var(--line);border-radius:16px;background:var(--card);align-items:center}
-.it .peca{grid-area:p}.it .tirar{grid-area:x}.it .q{grid-area:q}.it .v{grid-area:v}
+.it .peca{grid-area:p}.it .q{grid-area:q}.it .v{grid-area:v}
 .it .info{grid-area:i;color:var(--soft);font-size:13px}
 .it .v input{padding-right:84px}.it .q input{padding-right:40px}
-.it .tirar{min-height:44px;border-radius:12px;border:2px solid var(--line);background:transparent;color:var(--ink);font:600 18px Fredoka,sans-serif;cursor:pointer}
+.it .tirar{grid-area:x;min-height:44px;border-radius:12px;border:2px solid var(--line);background:transparent;color:var(--ink);font:600 18px Fredoka,sans-serif;cursor:pointer}
 .sum{display:flex;flex-direction:column;justify-content:flex-end;padding-top:12px}
 .sum b{font-size:24px;white-space:nowrap}.sum small{color:var(--soft);font-size:14px}
 .sum small:empty{display:none}

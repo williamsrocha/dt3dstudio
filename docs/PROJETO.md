@@ -63,7 +63,20 @@ App de cálculo de preços, catálogo e pedidos da **DT 3D STUDIO**, uma pequena
 
 **Dados no Firestore:** `familias/{codigo}` guarda a configuração; as subcoleções `pecas` e `pedidos` guardam o resto. As regras só aceitam códigos no formato `DT-XXXX-XXXX-XXXX`, não permitem listar códigos e não permitem apagar uma família inteira.
 
+**Segurança da tela:** todo dado que vem da nuvem passa por `esc()` (texto), `n()` (número) ou `fotoSegura()` (foto) antes de entrar no HTML. Assim, mesmo que alguém com o código da família grave dados estranhos, nada roda como código no app.
+
+**Regras de lucro:** um só lugar decide os avisos (`faixaLucro`: prejuízo, só o custo ou lucro) e as comparações de centavos (`iguais`), usados na etiqueta, nas vendas e nos pedidos.
+
 **Valores de dinheiro:** campos de dinheiro usam digitação estilo app de banco (`8` → `0,08` → `0,80`); campos `type=number` (peso, tempo, quantidade) mantêm o ponto decimal.
+
+## Testes
+
+Na pasta `tests/` (instruções no começo de cada arquivo):
+
+| Arquivo | O que testa |
+|---|---|
+| `tests/regressao.py` | O app inteiro: calculadora, lápis, vendas, pedidos, telefone, foto e PIN |
+| `tests/seguranca.py` | Dados maliciosos vindos da nuvem não podem rodar código no app |
 
 ## Decisões
 
@@ -92,6 +105,7 @@ App de cálculo de preços, catálogo e pedidos da **DT 3D STUDIO**, uma pequena
 | 24/11/2026 | Documentação do projeto em `docs/PROJETO.md` |
 | 26/11/2026 | Lápis na etiqueta para escolher o preço da peça antes de salvar no catálogo |
 | 26/11/2026 | **Vendi várias** (quantidade e preço por venda), valores reais recebidos e desfazer a última venda inteira |
+| 26/11/2026 | Revisão de código: proteção contra dados maliciosos da nuvem (10 brechas fechadas), regra única de lucro/prejuízo, telefone com uma regra só, CSS sem regra duplicada; testes em `tests/` |
 
 ## Pendências e ideias
 
@@ -100,3 +114,4 @@ App de cálculo de preços, catálogo e pedidos da **DT 3D STUDIO**, uma pequena
 - [ ] Avaliar **Modo treino** (testes separados dos dados reais).
 - [ ] Gerar **imagem do catálogo** com fotos e preços para Instagram e WhatsApp.
 - [ ] Vídeo de apresentação: versão narrada pelo Davi ou versão curta de 30 s.
+- [ ] Reforçar as regras do Firestore validando os campos gravados (tipos e tamanhos), como segunda camada de segurança.
