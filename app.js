@@ -47,6 +47,7 @@ let who = local.get('p3d-who', 'Davi');
 let atual = null;          // resultado do último cálculo
 let editando = null;       // id do pedido em edição
 let precoManual = null;    // preço escolhido pelo lápis (null = usa o sugerido)
+let verCusto = false;      // olho do Catálogo: custo e lucro ficam escondidos do cliente até tocar no olho
 
 /* ---------- utilidades de interface ---------- */
 let tt;
@@ -197,7 +198,7 @@ function abrirVenda(p) {
   vendaPeca = p;
   $('vendaTitulo').textContent = 'Vender ' + p.nome;
   $('vendaQtd').value = 1; $('vendaPreco').value = fmtMoney(p.preco);
-  $('vendaCatalogo').textContent = `Preço do catálogo: ${brl(p.preco)} · custo de cada: ${brl(p.custo)}`;
+  $('vendaCatalogo').textContent = `Preço do catálogo: ${brl(p.preco)}` + (verCusto ? ` · custo de cada: ${brl(p.custo)}` : '');
   atualizarVenda(); $('dlgVenda').showModal();
 }
 function dadosVenda() { return { qtd: Math.max(1, Math.round(num('vendaQtd')) || 1), preco: num('vendaPreco') }; }
@@ -205,8 +206,11 @@ function atualizarVenda() {
   const { qtd, preco } = dadosVenda(); const lucro = qtd * (preco - vendaPeca.custo);
   $('vendaTotal').textContent = brl(qtd * preco);
   const faixa = faixaLucro(lucro);
-  $('vendaAviso').textContent = { neg: `Abaixo do custo: vocês PERDEM ${brl(-lucro)} nesta venda!`,
-    zero: 'Assim vocês só pagam o custo, sem lucro.', ok: `Vocês ganham ${brl(lucro)} nesta venda.` }[faixa];
+  // com o olho fechado o cliente pode estar vendo: o aviso de prejuízo continua, mas sem números
+  const textos = verCusto
+    ? { neg: `Abaixo do custo: vocês PERDEM ${brl(-lucro)} nesta venda!`, zero: 'Assim vocês só pagam o custo, sem lucro.', ok: `Vocês ganham ${brl(lucro)} nesta venda.` }
+    : { neg: 'Atenção: esse preço é menor que o custo!', zero: 'Atenção: esse preço só paga o custo.', ok: '' };
+  $('vendaAviso').textContent = textos[faixa];
   $('vendaAviso').className = 'aviso ' + faixa;
 }
 
@@ -215,12 +219,15 @@ function renderPecas() {
   const vendidas = ps.reduce((s, i) => s + n(i.vendidas), 0);
   const ganho = ps.reduce((s, i) => s + recebidoPeca(i), 0);
   const lucro = ps.reduce((s, i) => s + recebidoPeca(i) - custoVendidoPeca(i), 0);
-  $('totPecas').innerHTML = `<div>Vendidas na escola<b>${vendidas}</b></div><div>Dinheiro recebido<b>${brl(ganho)}</b></div><div>Lucro de verdade<b>${brl(lucro)}</b></div>`;
+  const OCULTO = 'R$\u00a0••••';
+  $('totPecas').innerHTML = `<div>Vendidas na escola<b>${vendidas}</b></div><div>Dinheiro recebido<b>${brl(ganho)}</b></div><div>Lucro de verdade<b>${verCusto ? brl(lucro) : OCULTO}</b></div>`;
+  $('olho').setAttribute('aria-pressed', verCusto);
+  $('olho').innerHTML = `${ico(verCusto ? 'olho' : 'olho-fechado')}<span>${verCusto ? 'Esconder' : 'Ver custo'}</span>`;
   $('listaPecas').innerHTML = ps.length ? ps.map(i => { const id = esc(i.id), foto = fotoSegura(i.foto); return `<li>
       <button class="foto" data-a="foto" data-id="${id}" style="--c:${QUEM[i.who] || 'var(--brand)'}"
         aria-label="${foto ? 'Ver foto de' : 'Colocar foto em'} ${esc(i.nome)}">${foto ? `<img src="${foto}" alt="">` : ico('camera')}</button>
       <div><div class="nm">${esc(i.nome)}</div>
-      <div class="meta">${esc(i.who)} · custo ${brl(i.custo)} · vendidas: ${n(i.vendidas)}</div></div>
+      <div class="meta">${esc(i.who)}${verCusto ? ` · custo ${brl(i.custo)}` : ''} · vendidas: ${n(i.vendidas)}</div></div>
       <div class="pr">${brl(i.preco)}</div>
       <div class="acts">
         <button class="sold" data-a="vendi" data-id="${id}">${ico('moeda')}Vendi uma!</button>
@@ -231,6 +238,8 @@ function renderPecas() {
       </div></li>`; }).join('')
     : '<li class="empty">Nenhuma peça no catálogo ainda. Calcule o preço e toque em “Salvar no catálogo”.</li>';
 }
+
+function esconderCusto() { verCusto = false; renderPecas(); }
 
 /* ---------- fotos das peças ---------- */
 // A foto é reduzida para um quadrado pequeno (vitrine) e guardada junto com a peça,
@@ -445,6 +454,7 @@ const VIEWS = ['calcular', 'pecas', 'pedidos', 'ajustes'];
 function rota() {
   const v = VIEWS.includes(location.hash.slice(1)) ? location.hash.slice(1) : 'calcular';
   if (v !== 'ajustes' && ajustesAbertos) trancar();
+  if (v !== 'pecas' && verCusto) esconderCusto();
   VIEWS.forEach(n => { $('v-' + n).hidden = n !== v; });
   document.querySelectorAll('#tabs a').forEach(a => {
     if (a.dataset.v === v) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
@@ -645,7 +655,8 @@ function ligarEventos() {
     preencherConfig(); mostrarAjustes();
   });
   $('trancar').addEventListener('click', () => { trancar(); toast('Ajustes trancados'); });
-  document.addEventListener('visibilitychange', () => { if (document.hidden) trancar(); });
+  document.addEventListener('visibilitychange', () => { if (document.hidden) { trancar(); if (verCusto) esconderCusto(); } });
+  $('olho').addEventListener('click', () => { verCusto = !verCusto; renderPecas(); });
 
   window.addEventListener('hashchange', rota);
 }

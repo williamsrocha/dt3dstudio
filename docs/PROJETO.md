@@ -29,6 +29,7 @@ App de cálculo de preços, catálogo e pedidos da **DT 3D STUDIO**, uma pequena
 - **Vendi várias**: quantidade e preço de cada (vem do catálogo, pode mudar, por ex. preço de pacote), com total, lucro e aviso se ficar abaixo do custo.
 - Cada venda guarda o **valor real recebido**; "Dinheiro recebido" e "Lucro de verdade" usam esses valores. Somas feitas no servidor: dois celulares não perdem venda.
 - **Desfazer última venda** desfaz a venda inteira (ex.: as 10 unidades de uma vez).
+- **Olho "Ver custo"**: o custo de cada peça e o "Lucro de verdade" ficam **escondidos do cliente** por padrão. Tocar no olho mostra; esconde sozinho ao trocar de aba ou quando a tela apaga. Sem PIN, porque os meninos precisam ver o custo para negociar. Na janela do Vendi várias, com o olho fechado, o aviso de prejuízo continua, mas sem valores.
 - **Copiar catálogo para o WhatsApp**.
 
 ### Pedidos (encomendas)
@@ -75,7 +76,7 @@ Na pasta `tests/` (instruções no começo de cada arquivo):
 
 | Arquivo | O que testa |
 |---|---|
-| `tests/regressao.py` | O app inteiro: calculadora, lápis, vendas, pedidos, telefone, foto e PIN |
+| `tests/regressao.py` | O app inteiro: calculadora, lápis, olho do custo, vendas, pedidos, telefone, foto e PIN |
 | `tests/seguranca.py` | Dados maliciosos vindos da nuvem não podem rodar código no app |
 
 ## Decisões
@@ -107,6 +108,7 @@ Na pasta `tests/` (instruções no começo de cada arquivo):
 | 26/11/2026 | **Vendi várias** (quantidade e preço por venda), valores reais recebidos e desfazer a última venda inteira |
 | 26/11/2026 | Revisão de código: proteção contra dados maliciosos da nuvem (10 brechas fechadas), regra única de lucro/prejuízo, telefone com uma regra só, CSS sem regra duplicada; testes em `tests/` |
 | 26/11/2026 | Vídeo de apresentação **v2** (vertical, 1 min 29 s, trilha original): lápis do preço, fotos, Vendi várias, preço combinado, WhatsApp obrigatório |
+| 26/11/2026 | Olho no Catálogo: custo e lucro escondidos do cliente por padrão; testes atualizados (30 verificações) |
 
 ## Pendências e ideias
 

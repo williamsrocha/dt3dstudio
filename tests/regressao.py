@@ -46,6 +46,18 @@ async def m():
         # --- catálogo e vendas
         await pg.click('#tabs a[data-v="pecas"]'); await pg.wait_for_timeout(200)
         check('não duplica', (await pg.text_content('#listaPecas')).count('Chaveiro')==1)
+        # olho: custo e lucro escondidos do cliente por padrão
+        cat=await pg.text_content('#listaPecas'); tot=await pg.text_content('#totPecas')
+        check('custo escondido no catálogo', 'custo' not in cat and '••••' in tot, (cat[:80],tot))
+        await pg.click('#listaPecas button[data-a="varias"]'); await pg.wait_for_timeout(80)
+        check('venda sem custo com olho fechado', 'custo' not in await pg.text_content('#vendaCatalogo') and await pg.text_content('#vendaAviso')=='')
+        await pg.tap('#vendaPreco')
+        for _ in range(8): await pg.keyboard.press('Backspace')
+        await pg.keyboard.type('50'); await pg.wait_for_timeout(80)
+        check('aviso de prejuízo sem números', await pg.text_content('#vendaAviso')=='Atenção: esse preço é menor que o custo!')
+        await pg.click('#vendaCancelar')
+        await pg.click('#olho'); await pg.wait_for_timeout(80)
+        check('olho mostra custo e lucro', 'custo R$' in await pg.text_content('#listaPecas') and '••••' not in await pg.text_content('#totPecas'))
         await pg.click('#listaPecas button[data-a="varias"]'); await pg.tap('#vendaQtd'); await pg.keyboard.type('10'); await pg.wait_for_timeout(80)
         check('venda 10 = 35', await pg.text_content('#vendaTotal')==R(35) and 'ganham' in await pg.text_content('#vendaAviso'))
         await money('#vendaPreco','50'); check('venda prejuízo', 'PERDEM' in await pg.text_content('#vendaAviso'))
@@ -54,6 +66,9 @@ async def m():
         await pg.click('#listaPecas button[data-a="vendi"]'); await pg.wait_for_timeout(200)
         await pg.click('#listaPecas button[data-a="desfazer"]'); await pg.wait_for_timeout(200)
         check('desfazer 1', R(35) in await pg.text_content('#totPecas'))
+        # --- olho fecha sozinho ao sair da aba
+        await pg.click('#tabs a[data-v="calcular"]'); await pg.click('#tabs a[data-v="pecas"]'); await pg.wait_for_timeout(100)
+        check('olho fecha ao trocar de aba', 'custo' not in await pg.text_content('#listaPecas'))
         # --- pedido: telefone, preço combinado, desconto
         await pg.click('#listaPecas button[data-a="orcar"]'); await pg.wait_for_timeout(200)
         await pg.fill('#cliente','João'); await pg.click('#formPedido button[type=submit]')
