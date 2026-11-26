@@ -23,6 +23,11 @@
     </div>
   </a>
   <span class="sync" id="sync">Só neste aparelho</span>
+  <div class="vendedor" id="vendedor" role="group" aria-label="Quem está vendendo neste celular">
+    <span>Vendendo agora:</span>
+    <button type="button" data-k="Davi" style="--c:var(--davi)" aria-pressed="true">Davi</button>
+    <button type="button" data-k="Theo" style="--c:var(--theo)" aria-pressed="false">Theo</button>
+  </div>
 </header>
 
 
@@ -86,12 +91,8 @@
 
       <section class="card">
         <div class="head">
-          <h2>Quem fez a peça?</h2>
+          <h2>Dados da peça</h2>
           <button class="btn ghost small" id="limpar" type="button"><svg class="ic" aria-hidden="true"><use href="#i-borracha"/></svg>Limpar</button>
-        </div>
-        <div class="who" id="who">
-          <button type="button" data-k="Davi" style="--c:var(--davi)" aria-pressed="true">Davi</button>
-          <button type="button" data-k="Theo" style="--c:var(--theo)" aria-pressed="false">Theo</button>
         </div>
 
         <label for="nome">Nome da peça</label>
@@ -159,6 +160,10 @@
         <div class="row">
           <div><label for="cliente">Nome do cliente</label><input id="cliente" type="text" autocomplete="off" placeholder="Ex.: Pedro"></div>
           <div><label for="fone">WhatsApp do cliente <span class="hint">com DDD</span></label><input id="fone" type="tel" inputmode="numeric" autocomplete="off" placeholder="(19) 99999-9999"></div>
+        </div>
+        <div class="quem" id="pedidoQuem" role="group" aria-label="Quem vendeu"><span>Quem vendeu:</span>
+          <button type="button" data-k="Davi" style="--c:var(--davi)" aria-pressed="true">Davi</button>
+          <button type="button" data-k="Theo" style="--c:var(--theo)" aria-pressed="false">Theo</button>
         </div>
         <label>Peças do pedido <span class="hint">o preço vem do catálogo, mas vocês podem combinar outro com o cliente</span></label>
         <div id="itensForm"></div>
@@ -240,6 +245,10 @@
 <dialog id="dlgVenda">
   <form id="formVenda" novalidate>
     <h3 id="vendaTitulo">Vender</h3>
+    <div class="quem" id="vendaQuem" role="group" aria-label="Quem vendeu"><span>Quem vendeu:</span>
+          <button type="button" data-k="Davi" style="--c:var(--davi)" aria-pressed="true">Davi</button>
+          <button type="button" data-k="Theo" style="--c:var(--theo)" aria-pressed="false">Theo</button>
+    </div>
     <div class="row">
       <div><label for="vendaQtd">Quantas</label><div class="unit"><input id="vendaQtd" type="number" inputmode="numeric" min="1" step="1" value="1"><span>un</span></div></div>
       <div><label for="vendaPreco">Preço de cada</label><div class="unit"><input id="vendaPreco" type="text" inputmode="numeric" data-money value="0,00"><span>R$</span></div></div>

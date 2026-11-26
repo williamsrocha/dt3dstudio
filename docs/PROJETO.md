@@ -11,6 +11,13 @@ App de cálculo de preços, catálogo e pedidos da **DT 3D STUDIO**, uma pequena
 
 ## O que o app faz
 
+### Quem está vendendo
+- No topo do app: **Vendendo agora: Davi / Theo**. Cada celular lembra o seu dono; no celular do papai, troca com um toque.
+- As **peças são da loja** (DT 3D STUDIO): não existe mais "quem fez". O que conta é **quem vendeu**.
+- Cada venda (Vendi uma!, Vendi várias) e cada pedido guardam **quem vendeu**; na janela do Vendi várias e no pedido dá para trocar na hora.
+- Totais **por vendedor** no Catálogo (recebido e quantidade; lucro só com o olho aberto) e nos Pedidos (já recebido).
+- Vendas antigas, feitas antes dessa mudança, contam para quem estava marcado na peça.
+
 ### Calcular
 - Preço sugerido por peça a partir de:
   - **peso** e **tempo** da impressão **inteira** (como no fatiador), divididos pela **quantidade de peças** que saíram;
@@ -77,12 +84,13 @@ Na pasta `tests/` (instruções no começo de cada arquivo):
 
 | Arquivo | O que testa |
 |---|---|
-| `tests/regressao.py` | O app inteiro: calculadora, lápis, olho do custo, vendas, pedidos (metade, tudo, resto), telefone, foto e PIN |
+| `tests/regressao.py` | O app inteiro: calculadora, lápis, olho do custo, vendas e quem vendeu, pedidos (metade, tudo, resto), telefone, foto e PIN |
 | `tests/seguranca.py` | Dados maliciosos vindos da nuvem não podem rodar código no app |
 
 ## Decisões
 
 - Identidade visual **preto e laranja**, igual ao Instagram; Davi = azul, Theo = verde.
+- **As peças são da loja; o que importa é quem vendeu.** Cada celular marca o seu vendedor.
 - Textos **simples para as crianças** no app; mensagens ao cliente com termos formais (orçamento, sinal de 50%).
 - **Chave Pix aleatória**, nunca CPF: o código é público e as mensagens podem ser encaminhadas.
 - O app usa só a marca DT; nenhum personagem ou logo de terceiros.
@@ -111,6 +119,7 @@ Na pasta `tests/` (instruções no começo de cada arquivo):
 | 26/11/2026 | Vídeo de apresentação **v2** (vertical, 1 min 29 s, trilha original): lápis do preço, fotos, Vendi várias, preço combinado, WhatsApp obrigatório |
 | 26/11/2026 | Olho no Catálogo: custo e lucro escondidos do cliente por padrão; testes atualizados (30 verificações) |
 | 26/11/2026 | Pagamento total no pedido (**Cliente pagou tudo** e **Cliente pagou o resto**), totais e mensagem de confirmação corrigidos; testes: 41 verificações |
+| 26/11/2026 | **Quem vendeu** no lugar de "quem fez": seletor no topo, vendedor em cada venda e pedido, totais por vendedor; peças passam a ser da loja; testes: 47 verificações |
 
 ## Pendências e ideias
 

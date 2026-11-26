@@ -37,9 +37,14 @@ h3{font-size:18px;margin:20px 0 4px;font-weight:600}
 .olho{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 14px;border-radius:12px;border:2px solid var(--line);background:transparent;color:var(--ink);font:600 15px Fredoka,sans-serif;cursor:pointer;white-space:nowrap}
 .olho[aria-pressed=true]{background:var(--ink);border-color:var(--ink);color:var(--bg)}
 
-.who{display:flex;gap:10px;margin-bottom:16px}
-.who button{flex:1;min-height:52px;border-radius:16px;border:3px solid var(--line);background:transparent;color:var(--ink);font:600 18px Fredoka,sans-serif;cursor:pointer}
-.who button[aria-pressed=true]{border-color:var(--c);background:var(--c);color:var(--on-cor)}
+.vendedor{flex-basis:100%;display:flex;align-items:center;gap:8px;font-size:14px;margin-top:4px}
+.vendedor button,.quem button{min-height:40px;padding:0 16px;border-radius:99px;border:2px solid rgba(255,255,255,.35);background:transparent;color:inherit;font:600 16px Fredoka,sans-serif;cursor:pointer}
+.vendedor button[aria-pressed=true],.quem button[aria-pressed=true]{background:var(--c);border-color:var(--c);color:var(--on-cor)}
+.quem{display:flex;align-items:center;gap:8px;margin:10px 0 4px;flex-wrap:wrap}
+.quem button{min-height:44px;border-color:var(--line)}
+.totals .vend{border-left:5px solid var(--c)}
+.totals .quebra{flex-basis:100%;height:0}  /* Davi e Theo numa linha só deles */
+.totals .vend small{display:block;color:var(--soft);font-size:14px}
 
 label{display:block;font-weight:500;margin:12px 0 4px}
 .hint{display:block;font-size:13px;color:var(--soft);font-weight:400}

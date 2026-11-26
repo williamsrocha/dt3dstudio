@@ -3,6 +3,8 @@ import { abrirStore, cloudEnabled, local, uid, novoCodigo, normalizarCodigo, cod
 const INSTAGRAM = '@dt3dstudio';
 const DEFAULTS = { kg: 100, watts: 120, kwh: 0.95, desg: 0.30, falha: 10, arred: 0.5, lucro: 100, pix: '', validade: 7, prazoPadrao: 3 };
 const QUEM = { Davi: 'var(--davi)', Theo: 'var(--theo)' };
+const VENDEDORES = Object.keys(QUEM);
+const vendedorValido = v => VENDEDORES.includes(v) ? v : null;
 const STATUS = {
   aguardando: { nome: 'Esperando pagar a metade', cor: 'var(--st-agu)' },
   producao: { nome: 'Imprimindo', cor: 'var(--st-pro)' },
@@ -43,7 +45,8 @@ const cfgInputs = [...document.querySelectorAll('[data-cfg]')];
 
 let store = null;
 let st = { config: {}, pecas: [], pedidos: [] };
-let who = local.get('p3d-who', 'Davi');
+// Quem está vendendo neste celular (cada aparelho lembra o seu dono). Antes se chamava "quem fez".
+let vendedor = vendedorValido(local.get('p3d-vendedor', null)) || vendedorValido(local.get('p3d-who', null)) || 'Davi';
 let atual = null;          // resultado do último cálculo
 let editando = null;       // id do pedido em edição
 let precoManual = null;    // preço escolhido pelo lápis (null = usa o sugerido)
@@ -109,9 +112,11 @@ function salvarConfig() {
 }
 
 /* ---------- calculadora ---------- */
-function setWho(k) {
-  who = k; local.set('p3d-who', k);
-  document.querySelectorAll('#who button').forEach(b => b.setAttribute('aria-pressed', b.dataset.k === k));
+// Grupo de botões Davi/Theo: marca o escolhido.
+const marcarQuem = (grupo, k) => document.querySelectorAll(`#${grupo} button`).forEach(b => b.setAttribute('aria-pressed', b.dataset.k === k));
+const quemMarcado = grupo => vendedorValido(document.querySelector(`#${grupo} button[aria-pressed=true]`)?.dataset.k) || vendedor;
+function setVendedor(k) {
+  vendedor = k; local.set('p3d-vendedor', k); marcarQuem('vendedor', k);
 }
 
 function syncPresets() {
@@ -173,7 +178,7 @@ function mostrarCalculo() {
   $('alertaTag').textContent = faixa === 'neg' ? `Abaixo do custo: vocês perdem ${brl(-margem)} em cada peça!` : 'Assim vocês só pagam o custo, sem lucro.';
   $('cost').textContent = brl(r.custo);
   $('profit').textContent = brl(r.lucro);
-  $('pieceName').textContent = nm ? `${nm} · feita por ${who}` : `Feita por ${who}`;
+  $('pieceName').textContent = nm || 'Dê um nome para a peça';
   const partes = [['Filamento', r.fil, 'var(--c-fil)'], ['Energia', r.ene, 'var(--c-ene)'], ['Desgaste', r.des, 'var(--c-des)'],
     ['Extras', r.ext, 'var(--c-ext)'], ['Falhas', r.falha, 'var(--c-fal)'], ['Seu lucro', r.lucro, 'var(--c-luc)', 'luc']];
   const tot = partes.reduce((s, p) => s + p[1], 0) || 1;
@@ -187,8 +192,21 @@ function mostrarCalculo() {
 // Cada venda guarda o valor real recebido; peças antigas (só com a contagem) usam o preço do catálogo.
 const recebidoPeca = p => n(p.recebido ?? n(p.vendidas) * n(p.preco));
 const custoVendidoPeca = p => n(p.custoVendido ?? n(p.vendidas) * n(p.custo));
-function vender(p, qtd, preco) {
-  const v = { qtd, preco, custo: p.custo, em: Date.now() };
+// Totais de cada vendedor numa peça. Vendas antigas (sem vendedor) contam para quem estava marcado na peça.
+function vendasDaPeca(p) {
+  const r = {};
+  for (const v of VENDEDORES) { const x = p.vendas?.[v] || {}; r[v] = { qtd: n(x.qtd), recebido: n(x.recebido), custo: n(x.custo) }; }
+  const dono = vendedorValido(p.who);
+  if (dono) {
+    const soma = k => VENDEDORES.reduce((s, v) => s + r[v][k], 0);
+    r[dono].qtd += Math.max(0, n(p.vendidas) - soma('qtd'));
+    r[dono].recebido += Math.max(0, recebidoPeca(p) - soma('recebido'));
+    r[dono].custo += Math.max(0, custoVendidoPeca(p) - soma('custo'));
+  }
+  return r;
+}
+function vender(p, qtd, preco, quem) {
+  const v = { qtd, preco, custo: p.custo, em: Date.now(), vendedor: quem };
   // peça antiga: primeiro grava o que já tinha sido vendido, para o increment somar certo
   if (p.vendidas && p.recebido === undefined) store.savePeca({ ...p, recebido: recebidoPeca(p), custoVendido: custoVendidoPeca(p) });
   store.registrarVenda(p.id, v);
@@ -197,6 +215,7 @@ let vendaPeca = null;
 function abrirVenda(p) {
   vendaPeca = p;
   $('vendaTitulo').textContent = 'Vender ' + p.nome;
+  marcarQuem('vendaQuem', vendedor);
   $('vendaQtd').value = 1; $('vendaPreco').value = fmtMoney(p.preco);
   $('vendaCatalogo').textContent = `Preço do catálogo: ${brl(p.preco)}` + (verCusto ? ` · custo de cada: ${brl(p.custo)}` : '');
   atualizarVenda(); $('dlgVenda').showModal();
@@ -220,15 +239,19 @@ function renderPecas() {
   const ganho = ps.reduce((s, i) => s + recebidoPeca(i), 0);
   const lucro = ps.reduce((s, i) => s + recebidoPeca(i) - custoVendidoPeca(i), 0);
   const OCULTO = 'R$\u00a0••••';
-  $('totPecas').innerHTML = `<div>Vendidas na escola<b>${vendidas}</b></div><div>Dinheiro recebido<b>${brl(ganho)}</b></div><div>Lucro de verdade<b>${verCusto ? brl(lucro) : OCULTO}</b></div>`;
+  const porVend = VENDEDORES.map(v => {
+    const t = ps.reduce((a, p) => { const x = vendasDaPeca(p)[v]; return { qtd: a.qtd + x.qtd, recebido: a.recebido + x.recebido, custo: a.custo + x.custo }; }, { qtd: 0, recebido: 0, custo: 0 });
+    return `<div class="vend" style="--c:${QUEM[v]}">${v}<b>${brl(t.recebido)}</b><small>${t.qtd} vendida${t.qtd === 1 ? '' : 's'}${verCusto ? ` · lucro ${brl(t.recebido - t.custo)}` : ''}</small></div>`;
+  }).join('');
+  $('totPecas').innerHTML = `<div>Vendidas na escola<b>${vendidas}</b></div><div>Dinheiro recebido<b>${brl(ganho)}</b></div><div>Lucro de verdade<b>${verCusto ? brl(lucro) : OCULTO}</b></div><i class="quebra"></i>${porVend}`;
   $('olho').setAttribute('aria-pressed', verCusto);
   $('olho').setAttribute('aria-label', verCusto ? 'Esconder custo' : 'Ver custo');
   $('olho').innerHTML = `${ico(verCusto ? 'olho' : 'olho-fechado')}<span>${verCusto ? 'Esconder' : 'Ver custo'}</span>`;
   $('listaPecas').innerHTML = ps.length ? ps.map(i => { const id = esc(i.id), foto = fotoSegura(i.foto); return `<li>
-      <button class="foto" data-a="foto" data-id="${id}" style="--c:${QUEM[i.who] || 'var(--brand)'}"
+      <button class="foto" data-a="foto" data-id="${id}" style="--c:var(--brand)"
         aria-label="${foto ? 'Ver foto de' : 'Colocar foto em'} ${esc(i.nome)}">${foto ? `<img src="${foto}" alt="">` : ico('camera')}</button>
       <div><div class="nm">${esc(i.nome)}</div>
-      <div class="meta">${esc(i.who)}${verCusto ? ` · custo ${brl(i.custo)}` : ''} · vendidas: ${n(i.vendidas)}</div></div>
+      <div class="meta">${verCusto ? `custo ${brl(i.custo)} · ` : ''}vendidas: ${n(i.vendidas)}</div></div>
       <div class="pr">${brl(i.preco)}</div>
       <div class="acts">
         <button class="sold" data-a="vendi" data-id="${id}">${ico('moeda')}Vendi uma!</button>
@@ -318,7 +341,11 @@ function renderPedidos() {
   const aReceber = ps.reduce((s, p) => s + faltaPedido(p), 0);
   const emProd = ps.filter(p => p.status === 'producao').length;
   const lucro = ps.filter(p => p.status === 'entregue').reduce((s, p) => s + lucroPedido(p), 0);
-  $('totPedidos').innerHTML = `<div>Para imprimir<b>${emProd}</b></div><div>Já recebido<b>${brl(recebido)}</b></div><div>A receber na entrega<b>${brl(aReceber)}</b></div><div>Lucro dos entregues<b>${brl(lucro)}</b></div>`;
+  const porVend = VENDEDORES.map(v => {
+    const meus = ps.filter(p => vendedorValido(p.vendedor) === v);
+    return `<div class="vend" style="--c:${QUEM[v]}">${v}<b>${brl(meus.reduce((s, p) => s + pagoPedido(p), 0))}</b><small>${meus.length} pedido${meus.length === 1 ? '' : 's'} · já recebido</small></div>`;
+  }).join('');
+  $('totPedidos').innerHTML = `<div>Para imprimir<b>${emProd}</b></div><div>Já recebido<b>${brl(recebido)}</b></div><div>A receber na entrega<b>${brl(aReceber)}</b></div><div>Lucro dos entregues<b>${brl(lucro)}</b></div><i class="quebra"></i>${porVend}`;
   $('listaPedidos').innerHTML = ps.length ? ps.map(p => {
     const s = STATUS[p.status] || STATUS.aguardando, id = esc(p.id);
     const total = totalPedido(p), sinal = sinalPedido(p);
@@ -339,7 +366,7 @@ function renderPedidos() {
       entregue: `<button data-a="reabrir" data-id="${id}">Desfazer entrega</button>`,
     }[p.status] || '';
     return `<li>
-      <div class="ph"><div><div class="nm">${esc(p.cliente)}</div><div class="meta">Pedido de ${dataBR(p.criada)}</div></div>
+      <div class="ph"><div><div class="nm">${esc(p.cliente)}</div><div class="meta">Pedido de ${dataBR(p.criada)}${vendedorValido(p.vendedor) ? ` · vendido por ${p.vendedor}` : ''}</div></div>
       <div class="sts"><span class="st" style="--s:${s.cor}">${s.nome}</span>${p.status === 'producao' && pagouTudo(p) ? '<span class="st pago">Pago</span>' : ''}</div></div>
       <ul class="pl">${p.itens.map(i => { const f = fotoDaPeca(i.pecaId); return `<li><span>${f ? `<img class="mf" src="${f}" alt="">` : ''}${n(i.qtd)}x ${esc(i.nome)}</span><span>${brl(i.qtd * i.preco)}</span></li>`; }).join('')}
       ${descontoPedido(p) > 0 ? `<li class="desc"><span>Desconto</span><span>− ${brl(descontoPedido(p))}</span></li>` : ''}
@@ -426,6 +453,7 @@ function abrirForm(pedido, pecaId) {
   $('fone').value = pedido ? formatarFone(pedido.fone) : '';
   $('prazo').value = pedido ? pedido.prazo : cfg('prazoPadrao');
   $('desconto').value = fmtMoney(pedido ? pedido.desconto || 0 : 0);
+  marcarQuem('pedidoQuem', vendedorValido(pedido?.vendedor) || vendedor);
   $('itensForm').innerHTML = '';
   (pedido ? pedido.itens : [{ pecaId: pecaId || st.pecas[0].id, qtd: 1 }]).forEach(i => linhaForm(i));
   $('formErro').textContent = '';
@@ -501,17 +529,18 @@ function ligarEventos() {
   $('home').addEventListener('click', e => {
     if (location.hash === '#calcular' || !location.hash) { e.preventDefault(); rota(); }
   });
-  $('who').addEventListener('click', e => { const b = e.target.closest('button'); if (b) { setWho(b.dataset.k); mostrarCalculo(); } });
+  $('vendedor').addEventListener('click', e => { const b = e.target.closest('button'); if (b) { setVendedor(b.dataset.k); toast(`Agora vendendo: ${b.dataset.k}`); } });
+  for (const g of ['vendaQuem', 'pedidoQuem']) $(g).addEventListener('click', e => { const b = e.target.closest('button'); if (b) marcarQuem(g, b.dataset.k); });
   // escolher um botão de lucro volta ao preço calculado pelo app
   $('presets').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; $('lucro').value = b.dataset.v; precoManual = null; mostrarCalculo(); salvarConfig(); });
 
-  // Salva a peça calculada; se já existe uma igual (mesmo nome, quem fez e preço), reaproveita.
+  // Salva a peça calculada (as peças são da loja); se já existe uma igual (mesmo nome e preço), reaproveita.
   function salvarPecaAtual() {
     mostrarCalculo();
     if (!atual.nome) { toast('Dê um nome para a peça'); $('nome').focus(); return null; }
-    const igual = st.pecas.find(p => p.nome === atual.nome && p.who === who && iguais(p.preco, atual.preco));
+    const igual = st.pecas.find(p => p.nome === atual.nome && iguais(p.preco, atual.preco));
     if (igual) return { peca: igual, nova: false };
-    const peca = { id: uid(), nome: atual.nome, who, preco: atual.preco, custo: atual.custo, vendidas: 0, criada: Date.now() };
+    const peca = { id: uid(), nome: atual.nome, preco: atual.preco, custo: atual.custo, vendidas: 0, criada: Date.now() };
     store.savePeca(peca);
     return { peca, nova: true };
   }
@@ -530,7 +559,7 @@ function ligarEventos() {
     const p = st.pecas.find(x => x.id === b.dataset.id); if (!p) return;
     const a = b.dataset.a;
     if (a === 'foto') { if (p.foto) verFoto(p); else escolherFoto(p.id); }
-    if (a === 'vendi') { vender(p, 1, p.preco); toast('Mais uma venda!'); }
+    if (a === 'vendi') { vender(p, 1, p.preco, vendedor); toast(`Mais uma venda do ${vendedor}!`); }
     if (a === 'varias') abrirVenda(p);
     if (a === 'desfazer' && p.ultimaVenda) {
       const v = p.ultimaVenda;
@@ -565,8 +594,9 @@ function ligarEventos() {
     const lucro = qtd * (preco - p.custo);
     $('dlgVenda').close();
     if (faixaLucro(lucro) === 'neg' && !await perguntar(`Vendendo assim vocês PERDEM ${brl(-lucro)}. Registrar mesmo assim?`, 'Registrar', 'Voltar')) { $('dlgVenda').showModal(); return; }
-    vender(p, qtd, preco);
-    toast(qtd === 1 ? `Venda registrada: ${brl(preco)}` : `${qtd} vendas registradas: ${brl(qtd * preco)}`);
+    const quem = quemMarcado('vendaQuem');
+    vender(p, qtd, preco, quem);
+    toast(`${qtd === 1 ? 'Venda registrada' : `${qtd} vendas registradas`} para o ${quem}: ${brl(qtd * preco)}`);
   });
 
   $('copiarCatalogo').addEventListener('click', () => {
@@ -575,7 +605,7 @@ function ligarEventos() {
   });
   $('zerar').addEventListener('click', async () => {
     if (!await perguntar('Zerar a contagem de vendas na escola de todas as peças?', 'Zerar', 'Cancelar')) return;
-    st.pecas.filter(p => p.vendidas || p.recebido).forEach(p => store.savePeca({ ...p, vendidas: 0, recebido: 0, custoVendido: 0, ultimaVenda: null }));
+    st.pecas.filter(p => p.vendidas || p.recebido).forEach(p => store.savePeca({ ...p, vendidas: 0, recebido: 0, custoVendido: 0, vendas: {}, ultimaVenda: null }));
     toast('Vendas zeradas');
   });
 
@@ -610,7 +640,7 @@ function ligarEventos() {
     const antigo = st.pedidos.find(p => p.id === editando);
     const pedido = {
       ...(antigo || { id: uid(), status: 'aguardando', criada: Date.now() }),
-      cliente, fone: formatarFone($('fone').value), prazo: Math.round(num('prazo')), itens, desconto,
+      cliente, fone: formatarFone($('fone').value), prazo: Math.round(num('prazo')), itens, desconto, vendedor: quemMarcado('pedidoQuem'),
     };
     const lucro = lucroPedido(pedido);
     if (faixaLucro(lucro) === 'neg' && !await perguntar(`Com esse preço vocês PERDEM ${brl(-lucro)}. Salvar mesmo assim?`, 'Salvar assim', 'Voltar')) return;
@@ -722,7 +752,7 @@ function telaLogin() {
 }
 
 ligarEventos();
-setWho(who);
+setVendedor(vendedor);
 limparCalculadora(); // sempre abre limpo, mesmo se o navegador tentar restaurar o que foi digitado antes
 const codigo = local.get('p3d-codigo', null);
 if (cloudEnabled && !codigo) telaLogin();

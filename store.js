@@ -31,6 +31,29 @@ export function normalizarCodigo(s) {
   return sem.length === 12 ? `DT-${sem.slice(0, 4)}-${sem.slice(4, 8)}-${sem.slice(8, 12)}` : null;
 }
 
+// Soma (sinal 1) ou desfaz (sinal −1) uma venda na peça: totais da peça e totais de quem vendeu.
+function somarVenda(p, v, sinal) {
+  const q = sinal * v.qtd;
+  p.vendidas = Math.max(0, (p.vendidas || 0) + q);
+  p.recebido = Math.max(0, (p.recebido || 0) + q * v.preco);
+  p.custoVendido = Math.max(0, (p.custoVendido || 0) + q * v.custo);
+  if (v.vendedor) {
+    const t = ((p.vendas ||= {})[v.vendedor] ||= { qtd: 0, recebido: 0, custo: 0 });
+    t.qtd = Math.max(0, t.qtd + q); t.recebido = Math.max(0, t.recebido + q * v.preco); t.custo = Math.max(0, t.custo + q * v.custo);
+  }
+}
+// Mesmos campos em formato de increment do Firestore (soma feita no servidor).
+function incrementosVenda(fs, v, sinal) {
+  const q = sinal * v.qtd;
+  const inc = { vendidas: fs.increment(q), recebido: fs.increment(q * v.preco), custoVendido: fs.increment(q * v.custo) };
+  if (v.vendedor) {
+    inc[`vendas.${v.vendedor}.qtd`] = fs.increment(q);
+    inc[`vendas.${v.vendedor}.recebido`] = fs.increment(q * v.preco);
+    inc[`vendas.${v.vendedor}.custo`] = fs.increment(q * v.custo);
+  }
+  return inc;
+}
+
 const ordenar = a => a.sort((x, y) => (y.criada || 0) - (x.criada || 0));
 const upsert = (arr, obj) => { const i = arr.findIndex(x => x.id === obj.id); if (i < 0) arr.unshift(obj); else arr[i] = obj; };
 
@@ -48,13 +71,11 @@ function abrirLocal(onChange) {
     savePeca(p) { upsert(st.pecas, p); salvar(); },
     registrarVenda(id, v) {
       const p = st.pecas.find(x => x.id === id); if (!p) return;
-      p.vendidas = (p.vendidas || 0) + v.qtd; p.recebido = (p.recebido || 0) + v.qtd * v.preco;
-      p.custoVendido = (p.custoVendido || 0) + v.qtd * v.custo; p.ultimaVenda = v; salvar();
+      somarVenda(p, v, 1); p.ultimaVenda = v; salvar();
     },
     desfazerVenda(id) {
       const p = st.pecas.find(x => x.id === id); const v = p?.ultimaVenda; if (!v) return;
-      p.vendidas = Math.max(0, (p.vendidas || 0) - v.qtd); p.recebido = Math.max(0, (p.recebido || 0) - v.qtd * v.preco);
-      p.custoVendido = Math.max(0, (p.custoVendido || 0) - v.qtd * v.custo); p.ultimaVenda = null; salvar();
+      somarVenda(p, v, -1); p.ultimaVenda = null; salvar();
     },
     deletePeca(id) { st.pecas = st.pecas.filter(x => x.id !== id); salvar(); },
     savePedido(p) { upsert(st.pedidos, p); salvar(); },
@@ -112,17 +133,11 @@ async function abrirNuvem(codigo, onChange, onError) {
     savePeca(p) { return w(fs.setDoc(fs.doc(base, 'pecas', p.id), p)); },
     // increment soma no servidor: dois celulares registrando venda juntos não perdem nada
     registrarVenda(id, v) {
-      return w(fs.updateDoc(fs.doc(base, 'pecas', id), {
-        vendidas: fs.increment(v.qtd), recebido: fs.increment(v.qtd * v.preco),
-        custoVendido: fs.increment(v.qtd * v.custo), ultimaVenda: v,
-      }));
+      return w(fs.updateDoc(fs.doc(base, 'pecas', id), { ...incrementosVenda(fs, v, 1), ultimaVenda: v }));
     },
     desfazerVenda(id) {
       const v = st.pecas.find(x => x.id === id)?.ultimaVenda; if (!v) return;
-      return w(fs.updateDoc(fs.doc(base, 'pecas', id), {
-        vendidas: fs.increment(-v.qtd), recebido: fs.increment(-v.qtd * v.preco),
-        custoVendido: fs.increment(-v.qtd * v.custo), ultimaVenda: null,
-      }));
+      return w(fs.updateDoc(fs.doc(base, 'pecas', id), { ...incrementosVenda(fs, v, -1), ultimaVenda: null }));
     },
     deletePeca(id) { return w(fs.deleteDoc(fs.doc(base, 'pecas', id))); },
     savePedido(p) { return w(fs.setDoc(fs.doc(base, 'pedidos', p.id), p)); },
