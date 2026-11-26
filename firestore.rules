@@ -5,17 +5,125 @@ service cloud.firestore {
     // Cada família tem um código no formato DT-XXXX-XXXX-XXXX.
     // Quem sabe o código lê e edita os dados dessa família.
     // Ninguém consegue listar os códigos existentes nem apagar a família inteira.
+    //
+    // Segunda camada (26/11/2026): além do código, cada gravação é conferida.
+    // Só entram os campos que o app usa, com o tipo certo e tamanho limitado.
+    // Isso impede encher o banco com lixo ou com textos gigantes.
+    // Ao criar um campo novo no app, ele precisa ser incluído aqui também,
+    // senão a gravação é recusada (veja tests/regras/).
     function codigoValido(codigo) {
       return codigo.matches('^DT-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$');
     }
 
+    // ---------- tipos básicos ----------
+    function numero(v) { return v is number && v > -1000000000 && v < 1000000000; }
+    function texto(v, max) { return v is string && v.size() <= max; }
+    function hora(v) { return v is int && v >= 0; }                      // Date.now()
+    function horaOuNulo(v) { return v == null || hora(v); }
+    function vendedorOk(v) { return v == null || v in ['Davi', 'Theo']; }
+
+    // Campo opcional: se existir no documento, precisa passar no teste.
+    function opc(d, campo, ok) { return !(campo in d) || ok; }
+
+    // ---------- família (configurações) ----------
+    function configOk(c) {
+      return c is map
+        && c.keys().hasOnly(['kg', 'watts', 'kwh', 'desg', 'falha', 'arred', 'lucro',
+                             'pix', 'validade', 'prazoPadrao', 'pinHash'])
+        && opc(c, 'kg', numero(c.get('kg', 0)))
+        && opc(c, 'watts', numero(c.get('watts', 0)))
+        && opc(c, 'kwh', numero(c.get('kwh', 0)))
+        && opc(c, 'desg', numero(c.get('desg', 0)))
+        && opc(c, 'falha', numero(c.get('falha', 0)))
+        && opc(c, 'arred', numero(c.get('arred', 0)))
+        && opc(c, 'lucro', numero(c.get('lucro', 0)))
+        && opc(c, 'validade', numero(c.get('validade', 0)))
+        && opc(c, 'prazoPadrao', numero(c.get('prazoPadrao', 0)))
+        && opc(c, 'pix', texto(c.get('pix', ''), 100))
+        && opc(c, 'pinHash', texto(c.get('pinHash', ''), 64));
+    }
+    function familiaOk(d) {
+      return d.keys().hasOnly(['config', 'criada', 'atualizado'])
+        && opc(d, 'config', configOk(d.get('config', {})))
+        && opc(d, 'criada', hora(d.get('criada', 0)))
+        && opc(d, 'atualizado', hora(d.get('atualizado', 0)));
+    }
+
+    // ---------- peças do catálogo ----------
+    function totalOk(t) {
+      return t is map && t.keys().hasOnly(['qtd', 'recebido', 'custo'])
+        && opc(t, 'qtd', numero(t.get('qtd', 0)))
+        && opc(t, 'recebido', numero(t.get('recebido', 0)))
+        && opc(t, 'custo', numero(t.get('custo', 0)));
+    }
+    function vendasOk(v) {
+      return v is map && v.keys().hasOnly(['Davi', 'Theo'])
+        && opc(v, 'Davi', totalOk(v.get('Davi', {})))
+        && opc(v, 'Theo', totalOk(v.get('Theo', {})));
+    }
+    function ultimaVendaOk(u) {
+      return u == null || (u is map
+        && u.keys().hasOnly(['qtd', 'preco', 'custo', 'em', 'vendedor'])
+        && opc(u, 'qtd', numero(u.get('qtd', 0)))
+        && opc(u, 'preco', numero(u.get('preco', 0)))
+        && opc(u, 'custo', numero(u.get('custo', 0)))
+        && opc(u, 'em', hora(u.get('em', 0)))
+        && opc(u, 'vendedor', vendedorOk(u.get('vendedor', null))));
+    }
+    function fotoOk(f) {
+      return f is string && f.size() <= 100000
+        && f.matches('^data:image/jpeg;base64,[A-Za-z0-9+/=]+$');
+    }
+    function pecaOk(d, id) {
+      return d.keys().hasOnly(['id', 'nome', 'who', 'preco', 'custo', 'vendidas', 'criada',
+                               'recebido', 'custoVendido', 'vendas', 'ultimaVenda', 'foto'])
+        && d.get('id', '') == id
+        && texto(d.get('nome', null), 100)
+        && opc(d, 'who', vendedorOk(d.get('who', null)))
+        && opc(d, 'preco', numero(d.get('preco', 0)))
+        && opc(d, 'custo', numero(d.get('custo', 0)))
+        && opc(d, 'vendidas', numero(d.get('vendidas', 0)))
+        && opc(d, 'criada', hora(d.get('criada', 0)))
+        && opc(d, 'recebido', numero(d.get('recebido', 0)))
+        && opc(d, 'custoVendido', numero(d.get('custoVendido', 0)))
+        && opc(d, 'vendas', vendasOk(d.get('vendas', {})))
+        && opc(d, 'ultimaVenda', ultimaVendaOk(d.get('ultimaVenda', null)))
+        && opc(d, 'foto', fotoOk(d.get('foto', '')));
+    }
+
+    // ---------- pedidos ----------
+    // As regras não conseguem conferir item por item de uma lista;
+    // limitam a quantidade de itens (o app já trata cada item como texto/número seguro).
+    function pedidoOk(d, id) {
+      return d.keys().hasOnly(['id', 'status', 'criada', 'cliente', 'fone', 'prazo', 'itens',
+                               'desconto', 'vendedor', 'pago', 'restoAntes', 'sinalEm', 'entregueEm'])
+        && d.get('id', '') == id
+        && d.get('status', '') in ['aguardando', 'producao', 'entregue']
+        && texto(d.get('cliente', null), 100)
+        && opc(d, 'fone', texto(d.get('fone', ''), 30))
+        && opc(d, 'prazo', numero(d.get('prazo', 0)))
+        && d.get('itens', null) is list && d.get('itens', []).size() <= 50
+        && opc(d, 'desconto', numero(d.get('desconto', 0)))
+        && opc(d, 'vendedor', vendedorOk(d.get('vendedor', null)))
+        && opc(d, 'pago', d.get('pago', null) in [null, 'metade', 'total'])
+        && opc(d, 'restoAntes', d.get('restoAntes', false) is bool)
+        && opc(d, 'criada', hora(d.get('criada', 0)))
+        && opc(d, 'sinalEm', horaOuNulo(d.get('sinalEm', null)))
+        && opc(d, 'entregueEm', horaOuNulo(d.get('entregueEm', null)));
+    }
+
     match /familias/{codigo} {
-      allow get, create, update: if codigoValido(codigo);
+      allow get: if codigoValido(codigo);
+      allow create, update: if codigoValido(codigo) && familiaOk(request.resource.data);
       allow list, delete: if false;
 
-      match /{colecao}/{id} {
-        allow read, write: if codigoValido(codigo)
-                           && colecao in ['pecas', 'pedidos'];
+      match /pecas/{id} {
+        allow read, delete: if codigoValido(codigo);
+        allow create, update: if codigoValido(codigo) && pecaOk(request.resource.data, id);
+      }
+      match /pedidos/{id} {
+        allow read, delete: if codigoValido(codigo);
+        allow create, update: if codigoValido(codigo) && pedidoOk(request.resource.data, id);
       }
     }
 

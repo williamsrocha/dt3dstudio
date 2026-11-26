@@ -1,0 +1,14 @@
+{
+  "name": "dt3dstudio-teste-regras",
+  "private": true,
+  "type": "module",
+  "description": "Testa as regras do Firestore (firestore.rules) no emulador, sem tocar nos dados reais.",
+  "scripts": {
+    "test": "firebase emulators:exec --only firestore --project demo-dt3d \"node --test regras.test.mjs\""
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^5.0.2",
+    "firebase": "^12.19.0",
+    "firebase-tools": "^15.37.0"
+  }
+}

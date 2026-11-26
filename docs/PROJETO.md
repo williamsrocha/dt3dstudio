@@ -67,7 +67,7 @@ App de cálculo de preços, catálogo e pedidos da **DT 3D STUDIO**, uma pequena
 | `app.js` | Cálculo, catálogo, fotos, pedidos, mensagens, PIN e navegação |
 | `store.js` | Dados: modo local (`localStorage`) ou nuvem (Firestore) |
 | `firebase-config.js` | Configuração pública do Firebase (não é senha) |
-| `firestore.rules` | Regras de segurança do banco |
+| `firestore.rules` | Regras de segurança do banco: código da família + conferência de cada campo gravado (tipo e tamanho). **Campo novo no app precisa entrar aqui também** |
 | `.gitignore` | Impede que segredos (`.env`), cache do Python e arquivos do sistema vão para o GitHub |
 | `manifest.webmanifest`, `sw.js`, `icons/` | App instalável, offline e atualização automática |
 
@@ -87,6 +87,7 @@ Na pasta `tests/` (instruções no começo de cada arquivo):
 |---|---|
 | `tests/regressao.py` | O app inteiro: calculadora, lápis, olho do custo, vendas e quem vendeu, pedidos (metade, tudo, resto), telefone, foto e PIN |
 | `tests/seguranca.py` | Dados maliciosos vindos da nuvem não podem rodar código no app |
+| `tests/regras/` | Regras do Firestore no emulador: o uso normal do app passa e gravações estranhas são recusadas (`npm install` e `npm test` dentro da pasta; precisa de Node e Java) |
 
 ## Decisões
 
@@ -123,6 +124,7 @@ Na pasta `tests/` (instruções no começo de cada arquivo):
 | 26/11/2026 | Pagamento total no pedido (**Cliente pagou tudo** e **Cliente pagou o resto**), totais e mensagem de confirmação corrigidos; testes: 41 verificações |
 | 26/11/2026 | **Quem vendeu** no lugar de "quem fez": seletor no topo, vendedor em cada venda e pedido, totais por vendedor; peças passam a ser da loja; testes: 47 verificações |
 | 26/11/2026 | `.gitignore` criado (`.env`, cache do Python, arquivos do sistema); cache do Python que estava no repositório foi removido |
+| 26/11/2026 | Regras do Firestore reforçadas: só os campos que o app usa, com tipo e tamanho limitados (nome e cliente até 100 letras, foto só JPEG do app, vendedor só Davi ou Theo); teste no emulador em `tests/regras/` (10 cenários) |
 
 ## Pendências e ideias
 
@@ -133,5 +135,6 @@ Na pasta `tests/` (instruções no começo de cada arquivo):
 - [x] ~~Atualizar o vídeo de apresentação~~: feita a v2 em 26/11/2026.
 - [ ] Vídeo: versão narrada pelo Davi ou versão curta de 30 s para Reels.
 - [ ] Refazer o vídeo quando entrarem funções novas.
-- [ ] Reforçar as regras do Firestore validando os campos gravados (tipos e tamanhos), como segunda camada de segurança.
+- [x] ~~Reforçar as regras do Firestore validando os campos gravados~~: feito em 26/11/2026.
+- [ ] **Publicar** o novo `firestore.rules` no console do Firebase (Firestore → Regras → Publicar). Até lá, vale a versão antiga.
 - [ ] Restringir a chave do Firebase (`apiKey`) no Google Cloud para funcionar só em `williamsrocha.github.io`.

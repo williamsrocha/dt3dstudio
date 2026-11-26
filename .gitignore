@@ -16,3 +16,7 @@ desktop.ini
 .idea/
 *.swp
 *~
+
+# Dependências do teste de regras (tests/regras)
+node_modules/
+*.log
