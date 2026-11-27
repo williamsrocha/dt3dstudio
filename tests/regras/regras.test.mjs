@@ -61,6 +61,12 @@ test('família: criar, ler, salvar configurações e PIN', async () => {
   await assertSucceeds(setDoc(fam(), { config: { ...CONFIG, pinHash: 'a'.repeat(64) }, atualizado: agora() }, { merge: true }));
 });
 
+test('família: tarifas do Mercado Livre (aba Marketplace) são salvas', async () => {
+  const ML = { mlComissao: 12, mlCustoUnid: 6.75, mlLimite: 79, mlFrete: 0, mlMetade: 'sim' };
+  await assertSucceeds(setDoc(fam(), { config: { ...CONFIG, ...ML }, criada: agora() }));
+  await assertSucceeds(setDoc(fam(), { config: { ...CONFIG, ...ML, mlComissao: 13.5, mlMetade: 'nao' }, atualizado: agora() }, { merge: true }));
+});
+
 test('família vazia (código sem nada salvo) também pode ser criada', async () => {
   await assertSucceeds(setDoc(fam(), { config: {}, criada: agora() }));
 });
@@ -70,6 +76,7 @@ test('peça: salvar, foto, remover foto, vender, desfazer, zerar e apagar', asyn
   await assertSucceeds(getDocs(collection(db, 'familias', COD, 'pecas')));
   await assertSucceeds(setDoc(peca('p1'), { ...novaPeca('p1'), foto: FOTO }));
   await assertSucceeds(setDoc(peca('p1'), novaPeca('p1')));                             // sem foto
+  await assertSucceeds(setDoc(peca('p1'), { ...novaPeca('p1'), mlKit: 10 }));           // kit no Marketplace
   const v = { qtd: 3, preco: 3, custo: 1.2, em: agora(), vendedor: 'Theo' };
   await assertSucceeds(updateDoc(peca('p1'), { ...incVenda(v), ultimaVenda: v }));      // Vendi várias
   await assertSucceeds(updateDoc(peca('p1'), { ...incVenda(v, -1), ultimaVenda: null }));// desfazer
@@ -124,6 +131,8 @@ test('família: campos a mais, tipos errados e textos grandes são recusados', a
   await assertFails(setDoc(fam(), { config: { ...CONFIG, pinHash: 'x'.repeat(65) } }));
   await assertFails(setDoc(fam(), { config: 'texto' }));
   await assertFails(setDoc(fam(), { config: CONFIG, criada: 'ontem' }));
+  await assertFails(setDoc(fam(), { config: { ...CONFIG, mlComissao: '12%' } }));
+  await assertFails(setDoc(fam(), { config: { ...CONFIG, mlMetade: 'talvez' } }));
 });
 
 test('peça: campos a mais, id trocado, tipos errados, nome gigante e foto falsa são recusados', async () => {
@@ -139,6 +148,7 @@ test('peça: campos a mais, id trocado, tipos errados, nome gigante e foto falsa
   await assertFails(setDoc(peca('p1'), { ...novaPeca('p1'), vendas: { Hacker: { qtd: 1 } } }));
   await assertFails(setDoc(peca('p1'), { ...novaPeca('p1'), vendas: { Davi: { qtd: 1, x: '<img>' } } }));
   await assertFails(setDoc(peca('p1'), { ...novaPeca('p1'), ultimaVenda: { qtd: 1, vendedor: 'Hacker' } }));
+  await assertFails(setDoc(peca('p1'), { ...novaPeca('p1'), mlKit: 'dez' }));
   const { nome, ...semNome } = novaPeca('p1');
   await assertFails(setDoc(peca('p1'), semNome));
 });

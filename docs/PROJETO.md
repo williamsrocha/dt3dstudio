@@ -54,6 +54,13 @@ App de cálculo de preços, catálogo e pedidos da **DT 3D STUDIO**, uma pequena
 - Trancados por um **PIN** criado no próprio app. Só o *hash* do PIN é salvo. É uma tranca contra crianças, não uma proteção forte.
 - Mostra o **código da família** e permite sair do aparelho.
 
+### Marketplace (Mercado Livre)
+- Para cada peça do catálogo, o **preço do anúncio** para vocês receberem no Mercado Livre **o mesmo que na escola**, já descontando a comissão e o custo por unidade.
+- Mostra a conta: comissão, custo por unidade, frete, **quanto vocês recebem** e o lucro.
+- **Kit:** campo "Unidades no anúncio" (fica salvo na peça). Avisa quando o preço fica abaixo de R$ 12,50 (o Mercado Livre fica com metade) e sugere quantas unidades fazem o kit passar do limite sem custo por unidade.
+- **Tarifas nos Ajustes** (área do papai): comissão da categoria (padrão 12%, anúncio Clássico), custo por unidade abaixo do limite (padrão R$ 6,75), limite (R$ 79), frete e a regra dos 50% abaixo de R$ 12,50. São aproximadas: conferir no Simulador de Custos do Mercado Livre.
+- Cálculo: para cada faixa de preço resolve `preço × (1 − comissão) − custo da faixa − frete ≥ valor da escola`, fica com o menor preço válido e arredonda para cima, conferindo de novo.
+
 ### Geral
 - Instalável no celular (PWA), funciona sem internet e se atualiza sozinho quando há versão nova.
 - Modo claro e escuro, acompanhando o celular.
@@ -85,7 +92,7 @@ Na pasta `tests/` (instruções no começo de cada arquivo):
 
 | Arquivo | O que testa |
 |---|---|
-| `tests/regressao.py` | O app inteiro: calculadora, lápis, olho do custo, vendas e quem vendeu, pedidos (metade, tudo, resto), telefone, foto e PIN |
+| `tests/regressao.py` | O app inteiro: calculadora, lápis, olho do custo, vendas e quem vendeu, pedidos (metade, tudo, resto), telefone, foto, Marketplace e PIN |
 | `tests/seguranca.py` | Dados maliciosos vindos da nuvem não podem rodar código no app |
 | `tests/regras/` | Regras do Firestore no emulador: o uso normal do app passa e gravações estranhas são recusadas (`npm install` e `npm test` dentro da pasta; precisa de Node e Java) |
 
@@ -125,6 +132,7 @@ Na pasta `tests/` (instruções no começo de cada arquivo):
 | 26/11/2026 | **Quem vendeu** no lugar de "quem fez": seletor no topo, vendedor em cada venda e pedido, totais por vendedor; peças passam a ser da loja; testes: 47 verificações |
 | 26/11/2026 | `.gitignore` criado (`.env`, cache do Python, arquivos do sistema); cache do Python que estava no repositório foi removido |
 | 26/11/2026 | Regras do Firestore reforçadas: só os campos que o app usa, com tipo e tamanho limitados (nome e cliente até 100 letras, foto só JPEG do app, vendedor só Davi ou Theo); teste no emulador em `tests/regras/` (10 cenários) |
+| 27/11/2026 | Aba **Marketplace** (Mercado Livre, anúncio Clássico): preço do anúncio sem prejuízo, conta detalhada, kits e tarifas editáveis nos Ajustes; campos novos incluídos nas regras do Firestore; testes: app 52 verificações, regras 11 cenários |
 
 ## Pendências e ideias
 
@@ -134,6 +142,8 @@ Na pasta `tests/` (instruções no começo de cada arquivo):
 - [ ] Gerar **imagem do catálogo** com fotos e preços para Instagram e WhatsApp.
 - [x] ~~Atualizar o vídeo de apresentação~~: feita a v2 em 26/11/2026.
 - [ ] Vídeo: versão narrada pelo Davi ou versão curta de 30 s para Reels.
+- [ ] Conferir no Simulador de Custos do Mercado Livre a comissão e o custo por unidade da categoria das peças e ajustar nos Ajustes.
+- [ ] Avaliar a integração pela API do Mercado Livre (importar vendas, publicar anúncios, estoque). Precisa de um pequeno servidor para guardar a chave secreta (não pode ficar no app, que é público).
 - [ ] Refazer o vídeo quando entrarem funções novas.
 - [x] ~~Reforçar as regras do Firestore validando os campos gravados~~: feito em 26/11/2026.
 - [ ] **Publicar** o novo `firestore.rules` no console do Firebase (Firestore → Regras → Publicar). Até lá, vale a versão antiga.

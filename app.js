@@ -1,7 +1,10 @@
 import { abrirStore, cloudEnabled, local, uid, novoCodigo, normalizarCodigo, codigoExiste, criarFamilia } from './store.js';
 
 const INSTAGRAM = '@dt3dstudio';
-const DEFAULTS = { kg: 100, watts: 120, kwh: 0.95, desg: 0.30, falha: 10, arred: 0.5, lucro: 100, pix: '', validade: 7, prazoPadrao: 3 };
+const DEFAULTS = { kg: 100, watts: 120, kwh: 0.95, desg: 0.30, falha: 10, arred: 0.5, lucro: 100, pix: '', validade: 7, prazoPadrao: 3,
+  // Mercado Livre (anúncio Clássico) — valores aproximados; conferir no Simulador de Custos do Mercado Livre
+  mlComissao: 12, mlCustoUnid: 6.75, mlLimite: 79, mlFrete: 0, mlMetade: 'sim' };
+const ML_METADE_ATE = 12.5;   // abaixo desse preço o Mercado Livre cobra metade do valor como custo por unidade
 const QUEM = { Davi: 'var(--davi)', Theo: 'var(--theo)' };
 const VENDEDORES = Object.keys(QUEM);
 const vendedorValido = v => VENDEDORES.includes(v) ? v : null;
@@ -463,6 +466,68 @@ function abrirForm(pedido, pecaId) {
 }
 function fecharForm() { $('formPedido').hidden = true; editando = null; }
 
+/* ---------- Marketplace (Mercado Livre) ---------- */
+// Tarifas de um anúncio vendido por P reais.
+function tarifasML(P) {
+  const comissao = P * n(cfg('mlComissao')) / 100;
+  const unidade = P >= n(cfg('mlLimite')) ? 0 : (cfg('mlMetade') === 'sim' && P < ML_METADE_ATE ? P * 0.5 : n(cfg('mlCustoUnid')));
+  const frete = n(cfg('mlFrete'));
+  return { comissao, unidade, frete, recebe: P - comissao - unidade - frete };
+}
+// Menor preço de anúncio (arredondado para cima) para receber pelo menos `alvo` reais.
+// O custo por unidade muda por faixa de preço, então resolve a conta em cada faixa e fica com o menor preço que serve.
+function precoML(alvo) {
+  if (!(alvo > 0)) return 0;
+  const pct = n(cfg('mlComissao')) / 100, lim = n(cfg('mlLimite')), fixo = n(cfg('mlCustoUnid')), frete = n(cfg('mlFrete'));
+  const faixas = cfg('mlMetade') === 'sim'
+    ? [[0, Math.min(ML_METADE_ATE, lim), 0.5, 0], [ML_METADE_ATE, lim, 0, fixo], [lim, Infinity, 0, 0]]
+    : [[0, lim, 0, fixo], [lim, Infinity, 0, 0]];
+  const candidatos = faixas.map(([de, ate, pctUnid, fixoUnid]) => {
+    const div = 1 - pct - pctUnid; if (div <= 0 || de >= ate) return Infinity;
+    const P = Math.max(de, (alvo + frete + fixoUnid) / div);
+    return P < ate ? P : Infinity;
+  });
+  const passo = n(cfg('arred')) || 0.01;
+  let P = Math.ceil(Math.min(...candidatos) / passo - 1e-9) * passo;
+  for (let i = 0; i < 100000 && tarifasML(P).recebe < alvo - CENTAVO; i++) P += passo;   // o arredondamento pode cruzar uma faixa
+  return P;
+}
+function cartaoML(p) {
+  const kit = Math.max(1, Math.round(n(p.mlKit)) || 1);
+  const alvo = kit * n(p.preco), P = precoML(alvo), t = tarifasML(P), lucro = t.recebe - kit * n(p.custo);
+  const lim = n(cfg('mlLimite')), pct = n(cfg('mlComissao')) / 100;
+  // quantas unidades o kit precisa para passar do limite e não pagar custo por unidade
+  const kitLivre = n(p.preco) > 0 && pct < 1 ? Math.ceil((lim * (1 - pct) - n(cfg('mlFrete'))) / n(p.preco) - 1e-9) : 0;
+  const avisos = [];
+  if (cfg('mlMetade') === 'sim' && P < ML_METADE_ATE) avisos.push(['zero', `Abaixo de ${brl(ML_METADE_ATE)} o Mercado Livre fica com metade do preço. Vale montar um kit.`]);
+  if (P < lim && kitLivre > kit) avisos.push(['zero', `Com ${kitLivre} unidades no kit, o anúncio passa de ${brl(lim)} e não paga custo por unidade.`]);
+  if (P >= lim) avisos.push(['ok', `A partir de ${brl(lim)} não tem custo por unidade.`]);
+  const foto = fotoSegura(p.foto);
+  return `<li data-id="${esc(p.id)}">
+    <div class="ml-top">
+      <span class="mf">${foto ? `<img class="mf" src="${foto}" alt="">` : ico('camera')}</span>
+      <div><div class="nm">${esc(p.nome)}</div><div class="meta">Na escola: ${brl(p.preco)} cada</div></div>
+      <div class="ml-kit"><label for="kit-${esc(p.id)}">Unidades no anúncio</label><div class="unit"><input id="kit-${esc(p.id)}" class="kit" type="number" inputmode="numeric" min="1" step="1" value="${kit}"><span>un</span></div></div>
+    </div>
+    <div class="ml-preco"><small>Anunciar por</small><b>${brl(P)}</b>${kit > 1 ? `<small>${brl(P / kit)} cada</small>` : ''}</div>
+    <ul class="ml-conta">
+      <li><span>Comissão (${n(cfg('mlComissao')).toLocaleString('pt-BR')}%)</span><span>− ${brl(t.comissao)}</span></li>
+      <li><span>Custo por unidade do Mercado Livre</span><span>− ${brl(t.unidade)}</span></li>
+      ${t.frete > 0 ? `<li><span>Frete</span><span>− ${brl(t.frete)}</span></li>` : ''}
+      <li class="tot"><span>Vocês recebem</span><span>${brl(t.recebe)}</span></li>
+      <li><span>Na escola, ${kit} un daria</span><span>${brl(alvo)}</span></li>
+      <li><span>Lucro (tirando o custo de fazer)</span><span>${brl(lucro)}</span></li>
+    </ul>
+    ${avisos.map(([c, txt]) => `<p class="aviso ${c}">${txt}</p>`).join('')}
+  </li>`;
+}
+function renderMercado() {
+  $('mlResumo').textContent = `Mercado Livre · Clássico ${n(cfg('mlComissao')).toLocaleString('pt-BR')}%`;
+  if ($('listaML').contains(document.activeElement)) return;   // não refaz a lista enquanto digitam o kit
+  $('listaML').innerHTML = st.pecas.length ? st.pecas.map(cartaoML).join('')
+    : '<li class="empty">Nenhuma peça no catálogo ainda. Calcule o preço e salve no catálogo.</li>';
+}
+
 /* ---------- PIN do papai (tranca os Ajustes) ---------- */
 // O PIN nunca fica no código: só um hash dele vai para a configuração (sincronizada).
 // É uma tranca contra crianças, não uma proteção forte.
@@ -485,7 +550,7 @@ function mostrarAjustes() {
 function trancar() { ajustesAbertos = false; $('pin').value = ''; $('pin2').value = ''; $('pinErro').textContent = ''; mostrarAjustes(); }
 
 /* ---------- navegação ---------- */
-const VIEWS = ['calcular', 'pecas', 'pedidos', 'ajustes'];
+const VIEWS = ['calcular', 'pecas', 'pedidos', 'mercado', 'ajustes'];
 function rota() {
   const v = VIEWS.includes(location.hash.slice(1)) ? location.hash.slice(1) : 'calcular';
   if (v !== 'ajustes' && ajustesAbertos) trancar();
@@ -502,6 +567,7 @@ function render() {
   mostrarCalculo();
   renderPecas();
   renderPedidos();
+  renderMercado();
   mostrarAjustes();
 }
 
@@ -524,7 +590,19 @@ function ligarEventos() {
   $('precoEdit').addEventListener('submit', e => { e.preventDefault(); confirmarPreco(); });
   $('precoManual').addEventListener('blur', () => { if (!$('precoEdit').hidden) confirmarPreco(); });
   $('voltarSugerido').addEventListener('click', () => { precoManual = null; mostrarCalculo(); toast('Voltou ao preço sugerido'); });
-  cfgInputs.forEach(i => { if (!i.closest('#v-calcular')) i.addEventListener('input', () => { mostrarCalculo(); salvarConfig(); }); });
+  cfgInputs.forEach(i => { if (!i.closest('#v-calcular')) i.addEventListener('input', () => { mostrarCalculo(); renderMercado(); salvarConfig(); }); });
+  // Marketplace: kit de cada peça (atualiza o cartão na hora e salva na peça)
+  const tKit = {};
+  $('listaML').addEventListener('input', e => {
+    if (!e.target.classList.contains('kit')) return;
+    const li = e.target.closest('li[data-id]'); const p = st.pecas.find(x => x.id === li.dataset.id); if (!p) return;
+    const kit = Math.max(1, Math.round(n(e.target.value)) || 1);
+    const tmp = document.createElement('ul'); tmp.innerHTML = cartaoML({ ...p, mlKit: kit });
+    for (const sel of ['.ml-preco', '.ml-conta']) li.querySelector(sel).replaceWith(tmp.querySelector(sel));
+    li.querySelectorAll('.aviso').forEach(a => a.remove()); tmp.querySelectorAll('.aviso').forEach(a => li.appendChild(a));
+    clearTimeout(tKit[p.id]); tKit[p.id] = setTimeout(() => store.savePeca({ ...p, mlKit: kit }), 600);
+  });
+  $('listaML').addEventListener('focusout', () => setTimeout(renderMercado, 700));
   $('limpar').addEventListener('click', () => { limparCalculadora(); window.scrollTo(0, 0); toast('Campos limpos'); });
   $('home').addEventListener('click', e => {
     if (location.hash === '#calcular' || !location.hash) { e.preventDefault(); rota(); }

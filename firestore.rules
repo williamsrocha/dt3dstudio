@@ -29,7 +29,8 @@ service cloud.firestore {
     function configOk(c) {
       return c is map
         && c.keys().hasOnly(['kg', 'watts', 'kwh', 'desg', 'falha', 'arred', 'lucro',
-                             'pix', 'validade', 'prazoPadrao', 'pinHash'])
+                             'pix', 'validade', 'prazoPadrao', 'pinHash',
+                             'mlComissao', 'mlCustoUnid', 'mlLimite', 'mlFrete', 'mlMetade'])
         && opc(c, 'kg', numero(c.get('kg', 0)))
         && opc(c, 'watts', numero(c.get('watts', 0)))
         && opc(c, 'kwh', numero(c.get('kwh', 0)))
@@ -40,7 +41,12 @@ service cloud.firestore {
         && opc(c, 'validade', numero(c.get('validade', 0)))
         && opc(c, 'prazoPadrao', numero(c.get('prazoPadrao', 0)))
         && opc(c, 'pix', texto(c.get('pix', ''), 100))
-        && opc(c, 'pinHash', texto(c.get('pinHash', ''), 64));
+        && opc(c, 'pinHash', texto(c.get('pinHash', ''), 64))
+        && opc(c, 'mlComissao', numero(c.get('mlComissao', 0)))
+        && opc(c, 'mlCustoUnid', numero(c.get('mlCustoUnid', 0)))
+        && opc(c, 'mlLimite', numero(c.get('mlLimite', 0)))
+        && opc(c, 'mlFrete', numero(c.get('mlFrete', 0)))
+        && opc(c, 'mlMetade', c.get('mlMetade', 'sim') in ['sim', 'nao']);
     }
     function familiaOk(d) {
       return d.keys().hasOnly(['config', 'criada', 'atualizado'])
@@ -76,7 +82,7 @@ service cloud.firestore {
     }
     function pecaOk(d, id) {
       return d.keys().hasOnly(['id', 'nome', 'who', 'preco', 'custo', 'vendidas', 'criada',
-                               'recebido', 'custoVendido', 'vendas', 'ultimaVenda', 'foto'])
+                               'recebido', 'custoVendido', 'vendas', 'ultimaVenda', 'foto', 'mlKit'])
         && d.get('id', '') == id
         && texto(d.get('nome', null), 100)
         && opc(d, 'who', vendedorOk(d.get('who', null)))
@@ -88,7 +94,8 @@ service cloud.firestore {
         && opc(d, 'custoVendido', numero(d.get('custoVendido', 0)))
         && opc(d, 'vendas', vendasOk(d.get('vendas', {})))
         && opc(d, 'ultimaVenda', ultimaVendaOk(d.get('ultimaVenda', null)))
-        && opc(d, 'foto', fotoOk(d.get('foto', '')));
+        && opc(d, 'foto', fotoOk(d.get('foto', '')))
+        && opc(d, 'mlKit', numero(d.get('mlKit', 1)));
     }
 
     // ---------- pedidos ----------
